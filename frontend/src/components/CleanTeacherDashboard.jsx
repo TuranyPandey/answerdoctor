@@ -4,6 +4,8 @@ import {
   Sparkles, Send, FileText, CheckCircle, Search, Grid
 } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8008/api';
+
 const FALLBACK_ANALYTICS = {
   class_average_ras: 74.5,
   cohort_total_scripts: 240,
@@ -50,24 +52,64 @@ export default function TeacherDashboard({ user, onLogout }) {
   const [step1Text, setStep1Text] = useState('');
   const [step2Text, setStep2Text] = useState('');
   const [evalResult, setEvalResult] = useState(null);
+  const [assignmentId, setAssignmentId] = useState(1);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
 
-  const handleCreateRubric = (e) => {
+  const handleCreateRubric = async (e) => {
     e.preventDefault();
-    setEvalMsg("Custom assignment & 4 atomic rubric units decomposed cleanly by AI!");
+    setActionBusy(true);
+    setActionError('');
+    setEvalMsg('');
+    try {
+      const response = await fetch(`${API_BASE}/assignments/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: assTitle,
+          subject: 'Applied Thermodynamics',
+          classroom_id: 1,
+          answer_key_text: assKeyText,
+          total_marks: 100
+        })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const assignment = await response.json();
+      setAssignmentId(assignment.id);
+      setEvalMsg(`Assignment ${assignment.id} saved. Its rubric is ready for deterministic step matching.`);
+    } catch (error) {
+      setActionError('Could not save the rubric. Start the FastAPI backend on port 8008 and try again.');
+    } finally {
+      setActionBusy(false);
+    }
   };
 
-  const handleEvaluateCustomScript = (e) => {
+  const handleEvaluateCustomScript = async (e) => {
     e.preventDefault();
-    setEvalResult({
-      student: studentName || "Custom Student",
-      regNo: regNo || "26BCE0888",
-      rasScore: 85.0,
-      cmiStatus: "CLEAN",
-      steps: [
-        { step_number: 1, status: "MATCHED", text: step1Text || "State boundary reference conditions T_0 = 298.15 K.", similarity: 0.88 },
-        { step_number: 2, status: "MATCHED", text: step2Text || "Evaluated work done W = P*(V2 - V1) = 145.2 kJ.", similarity: 0.92 }
-      ]
-    });
+    setActionBusy(true);
+    setActionError('');
+    setEvalResult(null);
+    try {
+      const response = await fetch(`${API_BASE}/submissions/evaluate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: assignmentId,
+          student_name: studentName,
+          register_number: regNo,
+          steps: [
+            { step_number: 1, student_text: step1Text, has_diagram: false },
+            { step_number: 2, student_text: step2Text || 'Q - W = delta U', has_diagram: false }
+          ]
+        })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      setEvalResult(await response.json());
+    } catch (error) {
+      setActionError('Evaluation failed. Confirm the backend is running and the selected assignment has rubric units.');
+    } finally {
+      setActionBusy(false);
+    }
   };
 
   return (
@@ -78,7 +120,7 @@ export default function TeacherDashboard({ user, onLogout }) {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Welcome, {user.full_name || "Prof. Rajesh Sharma"}</h1>
-            <p className="text-xs text-gray-600 mt-0.5">Faculty Portal • Mechanical Engineering</p>
+            <p className="text-xs text-gray-600 mt-0.5">Faculty Portal • {user.email || "prof.sharma@vit.ac.in"} • Department of Mechanical Engineering</p>
           </div>
 
           <button
@@ -154,8 +196,8 @@ export default function TeacherDashboard({ user, onLogout }) {
               </div>
               
               <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                <p className="text-xs text-gray-600 uppercase font-semibold">Submissions Ingested</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">240 Scripts</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">Seeded Scenario Size</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">240 Simulated Scripts</p>
               </div>
               
               <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
@@ -196,8 +238,8 @@ export default function TeacherDashboard({ user, onLogout }) {
               {/* Pie Chart / Donut Chart: Cohort Performance Breakdown */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-base">🥧 Cohort Score Distribution</h3>
-                  <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded">240 Scripts</span>
+                  <h3 className="font-bold text-gray-900 text-base">🥧 Simulated Cohort Score Distribution</h3>
+                  <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded">Seeded scenario</span>
                 </div>
                 <p className="text-xs text-gray-500">Breakdown of student cohort by performance brackets.</p>
                 
@@ -321,9 +363,10 @@ export default function TeacherDashboard({ user, onLogout }) {
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition"
+                  disabled={actionBusy}
+                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition disabled:opacity-50"
                 >
-                  Decompose Rubric & Save Assignment
+                  {actionBusy ? 'Saving…' : 'Decompose Rubric & Save Assignment'}
                 </button>
               </form>
 
@@ -374,24 +417,47 @@ export default function TeacherDashboard({ user, onLogout }) {
                     onChange={(e) => setStep1Text(e.target.value)}
                     placeholder="State reference conditions T_0 = 298.15 K."
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-gray-900 focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Step 2 Derivation</label>
+                  <input
+                    type="text"
+                    value={step2Text}
+                    onChange={(e) => setStep2Text(e.target.value)}
+                    placeholder="Q - W = delta U"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-gray-900 focus:outline-none"
+                    required
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition"
+                  disabled={actionBusy}
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition disabled:opacity-50"
                 >
-                  Run Agentic Evaluation & Compute RAS
+                  {actionBusy ? 'Evaluating…' : `Evaluate against rubric ${assignmentId} & compute RAS`}
                 </button>
               </form>
+
+              {actionError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-xs font-bold">{actionError}</div>
+              )}
 
               {evalResult && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2 text-xs">
                   <div className="flex justify-between font-bold text-blue-900">
-                    <span>{evalResult.student} ({evalResult.regNo})</span>
-                    <span>RAS Score: {evalResult.rasScore}%</span>
+                    <span>{evalResult.student_name} ({evalResult.register_number})</span>
+                    <span>RAS Score: {evalResult.total_ras_score}%</span>
                   </div>
-                  <p className="text-green-700 font-bold">✓ Derivation Evaluated Live! No collusion detected.</p>
+                  <p className="text-green-700 font-bold">Saved as submission {evalResult.submission_id}. Result returned by FastAPI.</p>
+                  <div className="space-y-1">
+                    {evalResult.steps.map((step) => (
+                      <p key={step.id} className="text-gray-700">Step {step.step_number}: {step.status} ({Math.round(step.similarity_score * 100)}% similarity)</p>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

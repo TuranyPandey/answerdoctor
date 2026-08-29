@@ -3,6 +3,10 @@ import requests
 BASE_URL = "http://127.0.0.1:8008/api"
 
 def test_full_pipeline():
+    print("--- 0. Resetting deterministic demo data ---")
+    r = requests.post(f"{BASE_URL}/analytics/seed-demo")
+    assert r.status_code == 200
+
     print("--- 1. Testing Root Status ---")
     r = requests.get("http://127.0.0.1:8008/")
     assert r.status_code == 200
@@ -17,7 +21,7 @@ def test_full_pipeline():
     for u in ass_data['rubric_units']:
         print(f"  - [{u['category'].upper()}] {u['label']} (Weight: {u['weight']})")
 
-    print("\n--- 3. Testing Class Analytics & Scikit-Learn Error Clusters ---")
+    print("\n--- 3. Testing Seeded Class Analytics & Error Clusters ---")
     r = requests.get(f"{BASE_URL}/analytics/assignment/1")
     assert r.status_code == 200
     ana_data = r.json()
@@ -40,7 +44,32 @@ def test_full_pipeline():
         print(f"    CMI Score: {pair['cmi_score']} (CosSim: {pair['cos_sim']}, ErrorPatternMatch: {pair['error_match_score']})")
         print(f"    Reason: {pair['flagged_reason']}")
 
-    print("\n--- 5. Testing Student Submission & Reasoning Map ---")
+    print("\n--- 5. Testing Live Faculty Evaluation & Persistence ---")
+    evaluation_payload = {
+        "assignment_id": 1,
+        "student_name": "Review Two Demo",
+        "register_number": "DEMO-REVIEW-2",
+        "steps": [
+            {
+                "step_number": 1,
+                "student_text": "Applied the energy balance directly without defining the reference state.",
+                "has_diagram": False,
+            },
+            {
+                "step_number": 2,
+                "student_text": "Q - W = delta U where delta U = m c_v (T2 - T1).",
+                "has_diagram": False,
+            },
+        ],
+    }
+    r = requests.post(f"{BASE_URL}/submissions/evaluate", json=evaluation_payload)
+    assert r.status_code == 200, r.text
+    evaluated = r.json()
+    assert evaluated["submission_id"]
+    assert len(evaluated["steps"]) == 2
+    print(f"Saved submission {evaluated['submission_id']} with RAS {evaluated['total_ras_score']}%")
+
+    print("\n--- 6. Testing Student Submission & Reasoning Map ---")
     r = requests.get(f"{BASE_URL}/submissions/student/2/assignment/1")
     assert r.status_code == 200
     sub_data = r.json()
@@ -50,7 +79,7 @@ def test_full_pipeline():
     for node in sub_data['reasoning_map']:
         print(f"  - Step {node['step_number']} [{node['node_type']}]: {node['title']} -> Status: {node['status']} (Reasoning Break: {node['has_reasoning_break']})")
 
-    print("\n--- 6. Testing Step-Level Retry Practice Drill ---")
+    print("\n--- 7. Testing Step-Level Retry Practice Drill ---")
     weak_step = [s for s in sub_data['steps'] if s['status'] in ('WEAK', 'MISSING')][0]
     print(f"Testing Retry for Step ID {weak_step['id']} (Step {weak_step['step_number']})...")
     retry_payload = {"step_id": weak_step['id'], "selected_option": "A"}

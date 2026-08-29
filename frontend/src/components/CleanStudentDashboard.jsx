@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   LogOut, FileText, TrendingUp, AlertCircle, CheckCircle, Clock, 
   HelpCircle, BookOpen, Layers, Sparkles, Send, Award, Target, Check, X
 } from 'lucide-react';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8008/api';
 
 const FALLBACK_SUBMISSION = {
   submission_id: 1,
@@ -89,6 +91,8 @@ export default function StudentDashboard({ user, onLogout }) {
   const [retryModalStep, setRetryModalStep] = useState(null);
   const [selectedOption, setSelectedOption] = useState('');
   const [retryFeedback, setRetryFeedback] = useState(null);
+  const [dataSource, setDataSource] = useState('Loading backend data…');
+  const [retryBusy, setRetryBusy] = useState(false);
 
   // Doubt Center State
   const [doubtMessages, setDoubtMessages] = useState([
@@ -97,19 +101,41 @@ export default function StudentDashboard({ user, onLogout }) {
   const [doubtInput, setDoubtInput] = useState('');
   const [expandedPyqId, setExpandedPyqId] = useState(null);
 
-  const handleRetrySubmit = (step) => {
+  useEffect(() => {
+    const loadSubmission = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/submissions/student/${user.id}/assignment/1`);
+        if (!response.ok) throw new Error('Submission unavailable');
+        setSubmission(await response.json());
+        setDataSource('Database-backed seeded submission');
+      } catch (error) {
+        setSubmission(FALLBACK_SUBMISSION);
+        setDataSource('Local preview dataset — backend offline');
+      }
+    };
+    loadSubmission();
+  }, [user.id]);
+
+  const handleRetrySubmit = async (step) => {
     if (!selectedOption) return;
-    const isCorrect = (selectedOption === 'A');
-    if (isCorrect) {
-      setSubmission(prev => ({
-        ...prev,
-        total_ras_score: Math.min(100.0, prev.total_ras_score + 10.0),
-        steps: prev.steps.map(s => s.id === step.id ? { ...s, status: 'MATCHED' } : s),
-        reasoning_map: prev.reasoning_map.map(r => r.step_number === step.step_number ? { ...r, status: 'MATCHED', has_reasoning_break: false, similarity_pct: 85.0 } : r)
-      }));
-      setRetryFeedback({ isCorrect: true, text: step.retry_question.explanation });
-    } else {
-      setRetryFeedback({ isCorrect: false, text: "Incorrect. Make sure to establish standard reference state (T_0 = 298.15 K, P_0 = 1 atm)." });
+    setRetryBusy(true);
+    setRetryFeedback(null);
+    try {
+      const response = await fetch(`${API_BASE}/submissions/retry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step_id: step.id, selected_option: selectedOption })
+      });
+      if (!response.ok) throw new Error('Retry unavailable');
+      const result = await response.json();
+      const refreshed = await fetch(`${API_BASE}/submissions/${submission.submission_id}`);
+      if (!refreshed.ok) throw new Error('Could not refresh submission');
+      setSubmission(await refreshed.json());
+      setRetryFeedback({ isCorrect: result.is_correct, text: `${result.explanation} Updated RAS: ${result.new_total_ras}%.` });
+    } catch (error) {
+      setRetryFeedback({ isCorrect: false, text: 'The backend is offline, so this retry was not saved. Start FastAPI on port 8008.' });
+    } finally {
+      setRetryBusy(false);
     }
   };
 
@@ -138,8 +164,11 @@ export default function StudentDashboard({ user, onLogout }) {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Hi, {user.full_name?.split(' ')[0] || "Mangalapalli"}!</h1>
-            <p className="text-xs text-gray-600 mt-0.5">Student Portal • Reg: {user.register_number || "26BCE0616"}</p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-gray-900">Hi, {user.full_name || "Student Evaluator"}!</h1>
+              <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">{dataSource}</span>
+            </div>
+            <p className="text-xs text-gray-600 mt-0.5">Student Portal • {user.email || "student@vitstudent.ac.in"} • Reg: {user.register_number || "26BCE0616"}</p>
           </div>
 
           <button
@@ -185,7 +214,7 @@ export default function StudentDashboard({ user, onLogout }) {
             }`}
           >
             <HelpCircle className="w-4 h-4 text-emerald-600" />
-            <span>AI Doubt Center</span>
+            <span>Prototype Doubt Guide</span>
           </button>
 
           <button
@@ -362,7 +391,7 @@ export default function StudentDashboard({ user, onLogout }) {
                   {/* Details */}
                   <div className="px-6 grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <p className="text-xs text-gray-600">OCR Confidence</p>
+                      <p className="text-xs text-gray-600">Seeded Extraction Confidence</p>
                       <p className="text-lg font-semibold text-gray-900 mt-1">{(submission.ocr_confidence * 100).toFixed(1)}%</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -401,7 +430,11 @@ export default function StudentDashboard({ user, onLogout }) {
                           <p className="text-sm text-gray-600">{step.student_text}</p>
                           <p className="text-xs text-gray-500">{step.diagnosis_text}</p>
 
-                          {step.status === 'WEAK' && (
+                          {step.retry_status === 'PASSED' && (
+                            <p className="text-xs font-bold text-green-700">Retry passed — recovery credit has been added to RAS.</p>
+                          )}
+
+                          {step.status === 'WEAK' && step.retry_status !== 'PASSED' && (
                             <button
                               onClick={() => {
                                 setRetryModalStep(step);
@@ -434,7 +467,7 @@ export default function StudentDashboard({ user, onLogout }) {
                 <p className="text-xs text-gray-600 mt-1">Visualization highlighting broken steps vs matched reasoning logic.</p>
               </div>
               <span className="px-3 py-1 bg-purple-100 text-purple-700 font-bold text-xs rounded-full">
-                AI Diagnostics Engine
+                Deterministic Diagnostics
               </span>
             </div>
 
@@ -487,7 +520,7 @@ export default function StudentDashboard({ user, onLogout }) {
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[520px]">
             <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-emerald-600" /> AI Doubt Assistant
+                <HelpCircle className="w-5 h-5 text-emerald-600" /> Prototype Doubt Guide
               </h3>
             </div>
 
@@ -605,9 +638,10 @@ export default function StudentDashboard({ user, onLogout }) {
               </button>
               <button
                 onClick={() => handleRetrySubmit(retryModalStep)}
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-md"
+                disabled={retryBusy || !selectedOption}
+                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-md disabled:opacity-50"
               >
-                Submit Answer
+                {retryBusy ? 'Saving…' : 'Submit Answer'}
               </button>
             </div>
           </div>

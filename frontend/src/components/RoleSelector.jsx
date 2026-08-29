@@ -1,119 +1,32 @@
 import React, { useState } from 'react';
-import { Users, BookOpen, LogIn, UserPlus } from 'lucide-react';
+import { BookOpen, Stethoscope, Users } from 'lucide-react';
 
 export default function RoleSelector({ onSelectRole }) {
-  const [selectedRole, setSelectedRole] = useState(null);
-  const [authType, setAuthType] = useState(null);
-
-  const handleContinue = () => {
-    if (selectedRole && authType) {
-      onSelectRole({ role: selectedRole, authType });
-    }
-  };
+  const [selectedRole, setSelectedRole] = useState('teacher');
+  const roles = [
+    { id: 'teacher', label: 'Teacher', icon: Users, selected: 'border-blue-600 bg-blue-50 text-blue-600' },
+    { id: 'student', label: 'Student', icon: BookOpen, selected: 'border-purple-600 bg-purple-50 text-purple-600' }
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <LogIn className="w-7 h-7 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900">AnswerDoctor</h1>
-          </div>
-          <p className="text-gray-600 text-sm">Intelligent Script Assessment & Insights</p>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+      <div className="w-full max-w-lg space-y-8">
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 mb-3"><Stethoscope className="w-8 h-8 text-blue-600" /><h1 className="text-3xl font-bold text-gray-900">AnswerDoctor</h1></div>
+          <p className="text-sm text-gray-600">See where reasoning broke, then practise the exact missing step.</p>
+          <p className="text-[11px] mt-2 font-bold uppercase tracking-widest text-blue-600">Review 2 working prototype</p>
         </div>
-
-        {/* Main Card */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 space-y-8">
-          {/* Step 1: Role Selection */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">I am a</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => setSelectedRole('teacher')}
-                className={`p-6 rounded-xl border-2 transition flex flex-col items-center gap-3 ${
-                  selectedRole === 'teacher'
-                    ? 'border-blue-600 bg-blue-50'
-                    : 'border-gray-200 bg-white hover:border-blue-300'
-                }`}
-              >
-                <Users className={`w-8 h-8 ${selectedRole === 'teacher' ? 'text-blue-600' : 'text-gray-400'}`} />
-                <span className={`font-semibold text-sm ${selectedRole === 'teacher' ? 'text-blue-900' : 'text-gray-700'}`}>
-                  Teacher
-                </span>
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
+          <div><h2 className="text-lg font-semibold text-gray-900">Choose a demo perspective</h2><p className="text-xs text-gray-500 mt-1">Both views use the same seeded thermodynamics assessment.</p></div>
+          <div className="grid grid-cols-2 gap-4">
+            {roles.map(({ id, label, icon: Icon, selected }) => (
+              <button key={id} onClick={() => setSelectedRole(id)} className={`p-6 rounded-xl border-2 transition flex flex-col items-center gap-3 ${selectedRole === id ? selected : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+                <Icon className="w-8 h-8" /><span className="font-semibold text-sm text-gray-800">{label}</span>
               </button>
-
-              <button
-                onClick={() => setSelectedRole('student')}
-                className={`p-6 rounded-xl border-2 transition flex flex-col items-center gap-3 ${
-                  selectedRole === 'student'
-                    ? 'border-purple-600 bg-purple-50'
-                    : 'border-gray-200 bg-white hover:border-purple-300'
-                }`}
-              >
-                <BookOpen className={`w-8 h-8 ${selectedRole === 'student' ? 'text-purple-600' : 'text-gray-400'}`} />
-                <span className={`font-semibold text-sm ${selectedRole === 'student' ? 'text-purple-900' : 'text-gray-700'}`}>
-                  Student
-                </span>
-              </button>
-            </div>
+            ))}
           </div>
-
-          {/* Divider */}
-          {selectedRole && <div className="border-t border-gray-200"></div>}
-
-          {/* Step 2: Auth Type Selection */}
-          {selectedRole && (
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">I want to</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => setAuthType('signin')}
-                  className={`p-6 rounded-xl border-2 transition flex flex-col items-center gap-3 ${
-                    authType === 'signin'
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <LogIn className={`w-8 h-8 ${authType === 'signin' ? 'text-blue-600' : 'text-gray-400'}`} />
-                  <span className={`font-semibold text-sm ${authType === 'signin' ? 'text-blue-900' : 'text-gray-700'}`}>
-                    Sign In
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setAuthType('signup')}
-                  className={`p-6 rounded-xl border-2 transition flex flex-col items-center gap-3 ${
-                    authType === 'signup'
-                      ? 'border-green-600 bg-green-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <UserPlus className={`w-8 h-8 ${authType === 'signup' ? 'text-green-600' : 'text-gray-400'}`} />
-                  <span className={`font-semibold text-sm ${authType === 'signup' ? 'text-green-900' : 'text-gray-700'}`}>
-                    Sign Up
-                  </span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Continue Button */}
-          {selectedRole && authType && (
-            <button
-              onClick={handleContinue}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition"
-            >
-              Continue
-            </button>
-          )}
-
-          {/* Footer */}
-          <p className="text-xs text-center text-gray-500">
-            Secure. Simple. For educators & students.
-          </p>
+          <button onClick={() => onSelectRole({ role: selectedRole, authType: 'demo' })} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition">Continue to demo access</button>
+          <p className="text-xs text-center text-gray-500">This prototype does not claim production authentication.</p>
         </div>
       </div>
     </div>
