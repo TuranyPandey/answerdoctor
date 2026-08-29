@@ -1,16 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
 import TeacherDashboard from './components/TeacherDashboard';
 import StudentDashboard from './components/StudentDashboard';
+import PYQVault from './components/PYQVault';
+import AIDoubtCenter from './components/AIDoubtCenter';
+import AuthModal from './components/AuthModal';
+import DynamicIngestionModal from './components/DynamicIngestionModal';
 import BatchUploadModal from './components/BatchUploadModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8008/api';
 
-// --- FALLBACK DEMO DATASET (Used when backend API is unreachable or on Vercel) ---
+// --- FALLBACK DEMO DATASET ---
 const FALLBACK_ASSIGNMENT = {
   id: 1,
   title: "CAT-1 Exam: First Law & State Reference Equations",
   subject: "Thermodynamics",
+  exam_type: "CAT-1",
+  year: 2026,
   answer_key_text: "1. Concept: Establish reference state T_0 = 298.15 K, P_0 = 1 atm before applying first law energy balance.\n2. Formula: Q - W = delta U + delta KE + delta PE, where delta U = m * c_v * (T_2 - T_1).\n3. Intermediate Step: W_12 = integral P dV = P*(V_2 - V_1), evaluate W_12 = 145.2 kJ.\n4. Units: Convert pressure from bar to kPa (1 bar = 100 kPa) and temperatures to Kelvin.\n5. Final Answer: Net heat transfer Q_net = 384.6 kJ (positive indicating heat added).",
   total_marks: 100.0,
   total_scripts: 240,
@@ -36,8 +43,7 @@ const FALLBACK_ANALYTICS = {
   ],
   error_clusters: [
     { id: 1, cluster_name: "Unspecified Reference State Baseline", frequency: 80, percentage: 33.3, description: "Students applied first law enthalpy equations directly without defining baseline reference temperature T_0 and pressure P_0.", affected_students_json: '["Mangalapalli Sohum Seshu Krish (26BCE0616)", "Rayed Rabbanee (26BCE0606)", "80 Cohort Students"]' },
-    { id: 2, cluster_name: "Bar to kPa Unit Conversion Slip", frequency: 45, percentage: 18.8, description: "Students substituted pressure values in bar directly into SI equations without multiplying by 100 kPa/bar factor.", affected_students_json: '["Turany Pandey (26BCE0646)", "45 Cohort Students"]' },
-    { id: 3, cluster_name: "Boundary Work Sign Convention", frequency: 30, percentage: 12.5, description: "Inverted work done on/by system signs during integral P dV computation.", affected_students_json: '["30 Cohort Students"]' }
+    { id: 2, cluster_name: "Bar to kPa Unit Conversion Slip", frequency: 45, percentage: 18.8, description: "Students substituted pressure values in bar directly into SI equations without multiplying by 100 kPa/bar factor.", affected_students_json: '["Turany Pandey (26BCE0646)", "45 Cohort Students"]' }
   ],
   alternative_solutions: [
     { id: 1, title: "Alternative Method A: Exergy Balance Approach", found_in_count: 8, description: "Student derived state change via dead-state Exergy equation (e_2 - e_1) rather than standard enthalpy integral. Conceptually valid and scored 100% matched by Discovery Agent.", efficiency_gain: "Saves 2 derivation lines" },
@@ -125,9 +131,22 @@ const FALLBACK_SUBMISSION = {
 
 export default function App() {
   const [currentRole, setCurrentRole] = useState('teacher'); // 'teacher' or 'student'
-  const [isDemoLoading, setIsDemoLoading] = useState(false);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'malpractice', 'pyq', 'doubts'
   
+  // Modals & State
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isDynamicIngestionOpen, setIsDynamicIngestionOpen] = useState(false);
+  const [isBatchUploadOpen, setIsBatchUploadOpen] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
+
+  // Authenticated User
+  const [user, setUser] = useState({
+    full_name: "Prof. Rajesh Sharma",
+    email: "prof.sharma@vit.ac.in",
+    role: "teacher",
+    avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Rajesh"
+  });
+
   // App Data
   const [assignment, setAssignment] = useState(FALLBACK_ASSIGNMENT);
   const [analytics, setAnalytics] = useState(FALLBACK_ANALYTICS);
@@ -139,7 +158,7 @@ export default function App() {
     setLoading(true);
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500); // 1.5s cutoff
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
 
       const [assRes, anaRes, malRes, subRes] = await Promise.all([
         fetch(`${API_BASE}/assignments/1`, { signal: controller.signal }),
@@ -155,10 +174,10 @@ export default function App() {
         setMalpractice(await malRes.json());
         setSubmission(await subRes.json());
       } else {
-        throw new Error("Backend non-200 response");
+        throw new Error("API non-200");
       }
     } catch (err) {
-      console.warn("Backend API unreachable; loaded preloaded demo cohort fallback data.", err);
+      console.warn("Backend API offline; using preloaded demo dataset.", err);
       setAssignment(FALLBACK_ASSIGNMENT);
       setAnalytics(FALLBACK_ANALYTICS);
       setMalpractice(FALLBACK_MALPRACTICE);
@@ -172,6 +191,26 @@ export default function App() {
     fetchAllData();
   }, []);
 
+  const handleRoleSwitch = (newRole) => {
+    setCurrentRole(newRole);
+    if (newRole === 'student' && user.role === 'teacher') {
+      setUser({
+        full_name: "Mangalapalli Sohum Seshu Krish",
+        email: "sohum@vit.ac.in",
+        register_number: "26BCE0616",
+        role: "student",
+        avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sohum"
+      });
+    } else if (newRole === 'teacher' && user.role === 'student') {
+      setUser({
+        full_name: "Prof. Rajesh Sharma",
+        email: "prof.sharma@vit.ac.in",
+        role: "teacher",
+        avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Rajesh"
+      });
+    }
+  };
+
   const handleReloadDemo = async () => {
     setIsDemoLoading(true);
     try {
@@ -181,7 +220,7 @@ export default function App() {
       clearTimeout(timeoutId);
       await fetchAllData();
     } catch (err) {
-      console.warn("Backend seed unreachable; using preloaded demo dataset.", err);
+      console.warn("Seed demo API offline; using fallback demo dataset.", err);
       setAssignment(FALLBACK_ASSIGNMENT);
       setAnalytics(FALLBACK_ANALYTICS);
       setMalpractice(FALLBACK_MALPRACTICE);
@@ -209,10 +248,9 @@ export default function App() {
         return data;
       }
     } catch (err) {
-      console.warn("Backend retry endpoint offline; processing local retry drill response.", err);
+      console.warn("Backend offline; processing retry drill locally.", err);
     }
 
-    // Local Retry Fallback logic
     const isCorrect = (selectedOption.toUpperCase() === 'A');
     if (isCorrect && submission) {
       setSubmission(prev => ({
@@ -232,53 +270,107 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 selection:bg-emerald-500 selection:text-white">
+    <div className="flex min-h-screen bg-[#07090e] text-slate-100 font-sans selection:bg-emerald-500 selection:text-white">
       
-      {/* Navigation Header */}
-      <Navbar 
-        currentRole={currentRole} 
-        setCurrentRole={setCurrentRole}
-        onReloadDemo={handleReloadDemo}
-        isDemoLoading={isDemoLoading}
+      {/* Enterprise Sidebar */}
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        currentRole={currentRole}
+        onOpenDynamicIngestion={() => setIsDynamicIngestionOpen(true)}
       />
 
-      {/* Main App Container */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 space-y-4">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-500"></div>
-            <p className="text-xs text-slate-400 font-mono">Connecting to AnswerDoctor Engine...</p>
-          </div>
-        ) : (
-          <>
-            {currentRole === 'teacher' ? (
-              <TeacherDashboard 
-                analytics={analytics}
-                malpractice={malpractice}
-                assignment={assignment}
-                onUploadBatch={() => setIsUploadOpen(true)}
-              />
-            ) : (
-              <StudentDashboard 
-                submission={submission}
-                onRetrySubmit={handleRetrySubmit}
-              />
-            )}
-          </>
-        )}
-      </main>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        
+        {/* Enterprise Header */}
+        <Header 
+          currentRole={currentRole}
+          setCurrentRole={handleRoleSwitch}
+          user={user}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onReloadDemo={handleReloadDemo}
+          isDemoLoading={isDemoLoading}
+        />
 
-      {/* Batch Script Upload Modal */}
-      <BatchUploadModal 
-        isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
+        {/* Dynamic View Switcher */}
+        <main className="p-8 flex-1 max-w-7xl w-full mx-auto">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-32 space-y-3">
+              <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-emerald-500"></div>
+              <p className="text-xs text-slate-400 font-mono">Initializing AnswerDoctor Engine...</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'dashboard' && (
+                currentRole === 'teacher' ? (
+                  <TeacherDashboard 
+                    analytics={analytics}
+                    malpractice={malpractice}
+                    assignment={assignment}
+                    onUploadBatch={() => setIsBatchUploadOpen(true)}
+                  />
+                ) : (
+                  <StudentDashboard 
+                    submission={submission}
+                    onRetrySubmit={handleRetrySubmit}
+                  />
+                )
+              )}
+
+              {activeTab === 'malpractice' && (
+                <TeacherDashboard 
+                  analytics={analytics}
+                  malpractice={malpractice}
+                  assignment={assignment}
+                  onUploadBatch={() => setIsBatchUploadOpen(true)}
+                />
+              )}
+
+              {activeTab === 'pyq' && (
+                <PYQVault apiBase={API_BASE} />
+              )}
+
+              {activeTab === 'doubts' && (
+                <AIDoubtCenter 
+                  apiBase={API_BASE} 
+                  user={user} 
+                  submission={submission} 
+                />
+              )}
+            </>
+          )}
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t border-slate-900 py-5 text-center text-xs text-slate-500 font-mono">
+          AnswerDoctor Enterprise Engine • Powered by LangGraph Swarm & Sentence Transformers • Review 0 Final Build
+        </footer>
+
+      </div>
+
+      {/* Modals */}
+      <AuthModal 
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onLoginSuccess={(loggedUser) => {
+          setUser(loggedUser);
+          setCurrentRole(loggedUser.role);
+        }}
+      />
+
+      <DynamicIngestionModal 
+        isOpen={isDynamicIngestionOpen}
+        onClose={() => setIsDynamicIngestionOpen(false)}
+        apiBase={API_BASE}
         onComplete={fetchAllData}
       />
 
-      {/* Footer */}
-      <footer className="border-t border-slate-900 py-6 text-center text-xs text-slate-500 font-mono">
-        AnswerDoctor • Powered by LangGraph Swarm & Sentence Transformers • Review 0 Screening Submission
-      </footer>
+      <BatchUploadModal 
+        isOpen={isBatchUploadOpen}
+        onClose={() => setIsBatchUploadOpen(false)}
+        onComplete={fetchAllData}
+      />
 
     </div>
   );

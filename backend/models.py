@@ -9,7 +9,9 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     full_name = Column(String)
     register_number = Column(String, nullable=True)
-    role = Column(String) # 'teacher' or 'student'
+    role = Column(String, default="student") # 'teacher' or 'student'
+    avatar_url = Column(String, nullable=True)
+    google_id = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class Classroom(Base):
@@ -34,7 +36,9 @@ class Assignment(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String)
     subject = Column(String)
-    classroom_id = Column(Integer, ForeignKey("classrooms.id"))
+    exam_type = Column(String, default="CAT-1") # 'CAT-1', 'CAT-2', 'FAT'
+    year = Column(Integer, default=2026)
+    classroom_id = Column(Integer, ForeignKey("classrooms.id"), nullable=True)
     answer_key_text = Column(Text)
     total_marks = Column(Float, default=100.0)
     total_scripts = Column(Integer, default=0)
@@ -64,6 +68,7 @@ class Submission(Base):
     student_name = Column(String)
     register_number = Column(String)
     script_image_url = Column(String, nullable=True)
+    raw_script_text = Column(Text, nullable=True)
     total_ras_score = Column(Float, default=0.0) # 0.0 to 100.0
     ocr_confidence = Column(Float, default=0.95)
     is_collusion_flagged = Column(Boolean, default=False)
@@ -114,3 +119,24 @@ class ErrorCluster(Base):
     percentage = Column(Float)
     description = Column(Text)
     affected_students_json = Column(Text) # JSON string list of student names
+
+class PYQQuestion(Base):
+    __tablename__ = "pyq_questions"
+    id = Column(Integer, primary_key=True, index=True)
+    subject = Column(String)
+    year = Column(Integer)
+    exam_type = Column(String) # 'CAT-1', 'CAT-2', 'FAT'
+    title = Column(String)
+    question_text = Column(Text)
+    answer_key_summary = Column(Text)
+    difficulty = Column(String, default="Medium") # 'Easy', 'Medium', 'Hard'
+    topics_json = Column(Text)
+
+class DoubtQuery(Base):
+    __tablename__ = "doubt_queries"
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("users.id"))
+    step_id = Column(Integer, ForeignKey("submission_steps.id"), nullable=True)
+    user_question = Column(Text)
+    ai_response = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
