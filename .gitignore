@@ -7,3 +7,7 @@ backend/__pycache__/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+.vercel
+.env*
+frontend/.env.local
+backend/.env
