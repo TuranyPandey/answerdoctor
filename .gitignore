@@ -1,10 +1,12 @@
-# Node / Frontend
+# Dependencies & Build Outputs
 node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+.next/
+.vercel/
 
-# Python / Backend
+# Python & Virtual Envs
 __pycache__/
 *.pyc
 *.pyo
@@ -16,17 +18,20 @@ backend/__pycache__/
 backend/services/__pycache__/
 backend/routers/__pycache__/
 
-# Database & SQLite
+# Databases & Local Logs
 backend/*.db
 *.db
+*.log
+.system_generated/
 
-# OS / IDE
+# Environment Variables & IDE/Agent Configs
+.env
+.env.*
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
-
-.next
-.vercel
-.env
-.env.*
+.gemini/
+.antigravity/
+brain/
+scratch/
