@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  LogOut, Users, BookOpen, BarChart3, ShieldAlert, 
-  Sparkles, Send, FileText, CheckCircle, Search, Grid
-} from 'lucide-react';
+import { LogOut, Users, BookOpen, BarChart3, ShieldAlert, FileText, Search, Grid } from 'lucide-react';
 
 const FALLBACK_ANALYTICS = {
   class_average_ras: 74.5,
@@ -21,11 +18,11 @@ const FALLBACK_ANALYTICS = {
 };
 
 const RUBRIC_BAR_ITEMS = [
-  { name: '1. Ref State', passRate: 50, color: 'bg-red-500' },
-  { name: '2. First Law', passRate: 100, color: 'bg-green-500' },
-  { name: '3. Work Integr.', passRate: 100, color: 'bg-green-500' },
-  { name: '4. Unit Conv.', passRate: 75, color: 'bg-amber-500' },
-  { name: '5. Final Ans.', passRate: 100, color: 'bg-green-500' }
+  { name: '1. Ref State', passRate: 50, color: 'bg-red-600' },
+  { name: '2. First Law', passRate: 100, color: 'bg-emerald-600' },
+  { name: '3. Work Integr.', passRate: 100, color: 'bg-emerald-600' },
+  { name: '4. Unit Conv.', passRate: 75, color: 'bg-amber-600' },
+  { name: '5. Final Ans.', passRate: 100, color: 'bg-emerald-600' }
 ];
 
 const FALLBACK_MALPRACTICE = {
@@ -37,14 +34,12 @@ const FALLBACK_MALPRACTICE = {
 };
 
 export default function TeacherDashboard({ user, onLogout }) {
-  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics', 'malpractice', 'auto_evaluator', 'pyq'
+  const [activeTab, setActiveTab] = useState('analytics');
   
-  // Custom Dynamic Assignment Creation
   const [assTitle, setAssTitle] = useState('');
   const [assKeyText, setAssKeyText] = useState('');
   const [evalMsg, setEvalMsg] = useState('');
 
-  // Custom Student Evaluation Form
   const [studentName, setStudentName] = useState('');
   const [regNo, setRegNo] = useState('');
   const [step1Text, setStep1Text] = useState('');
@@ -53,7 +48,7 @@ export default function TeacherDashboard({ user, onLogout }) {
 
   const handleCreateRubric = (e) => {
     e.preventDefault();
-    setEvalMsg("Custom assignment & 4 atomic rubric units decomposed cleanly by AI!");
+    setEvalMsg("Custom assignment & 4 atomic rubric units decomposed cleanly by AI.");
   };
 
   const handleEvaluateCustomScript = (e) => {
@@ -87,120 +82,116 @@ export default function TeacherDashboard({ user, onLogout }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+    <div className="min-h-screen bg-slate-100 text-slate-900 font-sans">
       
-      {/* Top Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+      {/* Off-white Header */}
+      <header className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20 shadow-xs">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Welcome, {user.full_name || "Prof. Rajesh Sharma"}</h1>
-            <p className="text-xs text-gray-600 mt-0.5">Faculty Portal • {user.email || "prof.sharma@vit.ac.in"} • Department of Mechanical Engineering</p>
+            <h1 className="text-xl font-bold text-slate-900">Faculty Portal: {user.full_name || "Prof. Rajesh Sharma"}</h1>
+            <p className="text-xs text-slate-600 mt-0.5">{user.email || "prof.sharma@vit.ac.in"} | Department of Mechanical Engineering</p>
           </div>
 
           <button
             onClick={onLogout}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-200 hover:bg-slate-300 rounded transition"
           >
-            <LogOut size={16} /> Sign Out
+            <LogOut size={14} /> Sign Out
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="max-w-7xl mx-auto px-6 flex items-center gap-2 border-t border-gray-100 text-sm font-medium pt-2 overflow-x-auto">
+        <div className="max-w-7xl mx-auto px-6 flex items-center gap-1 border-t border-slate-200 text-xs font-semibold pt-1 overflow-x-auto">
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition whitespace-nowrap ${
+            className={`px-3 py-2 border-b-2 transition whitespace-nowrap ${
               activeTab === 'analytics'
-                ? 'border-blue-600 text-blue-600 font-bold'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                ? 'border-blue-600 text-blue-700 font-bold'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
-            <BarChart3 className="w-4 h-4 text-blue-600" />
-            <span>Classroom Analytics & Charts</span>
+            Classroom Analytics & Charts
           </button>
 
           <button
             onClick={() => setActiveTab('malpractice')}
-            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition whitespace-nowrap ${
+            className={`px-3 py-2 border-b-2 transition whitespace-nowrap ${
               activeTab === 'malpractice'
-                ? 'border-blue-600 text-blue-600 font-bold'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                ? 'border-blue-600 text-blue-700 font-bold'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
-            <ShieldAlert className="w-4 h-4 text-red-600" />
-            <span>Malpractice Radar (CMI = 0.92)</span>
+            Malpractice Radar (CMI = 0.92)
           </button>
 
           <button
             onClick={() => setActiveTab('auto_evaluator')}
-            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition whitespace-nowrap ${
+            className={`px-3 py-2 border-b-2 transition whitespace-nowrap ${
               activeTab === 'auto_evaluator'
-                ? 'border-blue-600 text-blue-600 font-bold'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                ? 'border-blue-600 text-blue-700 font-bold'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Sparkles className="w-4 h-4 text-purple-600" />
-            <span>Auto-Evaluator & Rubric Studio</span>
+            Auto-Evaluator Studio
           </button>
 
           <button
             onClick={() => setActiveTab('pyq')}
-            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition whitespace-nowrap ${
+            className={`px-3 py-2 border-b-2 transition whitespace-nowrap ${
               activeTab === 'pyq'
-                ? 'border-blue-600 text-blue-600 font-bold'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                ? 'border-blue-600 text-blue-700 font-bold'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
-            <BookOpen className="w-4 h-4 text-amber-600" />
-            <span>PYQ Vault Archive</span>
+            PYQ Vault Archive
           </button>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-6">
         
-        {/* TAB 1: CLASSROOM ANALYTICS & CHARTS */}
+        {/* TAB 1: CLASSROOM ANALYTICS */}
         {activeTab === 'analytics' && (
-          <div className="space-y-8">
+          <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                <p className="text-xs text-gray-600 uppercase font-semibold">Class Average RAS</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">74.5%</p>
+              <div className="bg-slate-50 rounded border border-slate-300 p-4">
+                <p className="text-xs text-slate-600 font-semibold uppercase">Class Average RAS</p>
+                <p className="text-2xl font-bold text-blue-700 mt-1">74.5%</p>
               </div>
               
-              <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                <p className="text-xs text-gray-600 uppercase font-semibold">Submissions Ingested</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">240 Scripts</p>
+              <div className="bg-slate-50 rounded border border-slate-300 p-4">
+                <p className="text-xs text-slate-600 font-semibold uppercase">Submissions Ingested</p>
+                <p className="text-2xl font-bold text-emerald-700 mt-1">240 Scripts</p>
               </div>
               
-              <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                <p className="text-xs text-gray-600 uppercase font-semibold">Flagged Collusion Pairs</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">1 Pair</p>
+              <div className="bg-slate-50 rounded border border-slate-300 p-4">
+                <p className="text-xs text-slate-600 font-semibold uppercase">Collusion Flagged</p>
+                <p className="text-2xl font-bold text-red-700 mt-1">1 Pair</p>
               </div>
             </div>
 
-            {/* PICTORIAL CHARTS SECTION */}
+            {/* CHARTS SECTION */}
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
-              {/* Bar Chart: Rubric Unit Pass Rates */}
-              <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
+              {/* Bar Chart */}
+              <div className="bg-slate-50 rounded border border-slate-300 p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-base">📊 Rubric Unit Pass Rates (%)</h3>
-                  <span className="text-xs font-mono font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded">74.5% Class Avg</span>
+                  <h3 className="font-bold text-slate-900 text-sm">Rubric Unit Pass Rates (%)</h3>
+                  <span className="text-xs font-mono font-bold text-emerald-700">74.5% Class Avg</span>
                 </div>
-                <p className="text-xs text-gray-500">Cohort mastery percentage across all 5 rubric concept units.</p>
+                <p className="text-xs text-slate-600">Cohort mastery percentage across 5 rubric concept units.</p>
                 
-                <div className="space-y-3 pt-2">
+                <div className="space-y-2.5 pt-1">
                   {RUBRIC_BAR_ITEMS.map((item, idx) => (
                     <div key={idx} className="space-y-1">
-                      <div className="flex justify-between text-xs font-bold text-gray-700">
+                      <div className="flex justify-between text-xs font-semibold text-slate-800">
                         <span>{item.name}</span>
                         <span>{item.passRate}% Pass Rate</span>
                       </div>
-                      <div className="w-full bg-gray-100 rounded-full h-3">
+                      <div className="w-full bg-slate-200 rounded h-2.5">
                         <div
-                          className={`h-3 rounded-full ${item.color} transition-all duration-500`}
+                          className={`h-2.5 rounded ${item.color}`}
                           style={{ width: `${item.passRate}%` }}
                         ></div>
                       </div>
@@ -209,40 +200,39 @@ export default function TeacherDashboard({ user, onLogout }) {
                 </div>
               </div>
 
-              {/* Pie Chart / Donut Chart: Cohort Performance Breakdown */}
-              <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
+              {/* Donut Chart */}
+              <div className="bg-slate-50 rounded border border-slate-300 p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-base">🥧 Cohort Score Distribution</h3>
-                  <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded">240 Scripts</span>
+                  <h3 className="font-bold text-slate-900 text-sm">Cohort Score Distribution</h3>
+                  <span className="text-xs font-mono font-bold text-blue-700">240 Scripts</span>
                 </div>
-                <p className="text-xs text-gray-500">Breakdown of student cohort by performance brackets.</p>
+                <p className="text-xs text-slate-600">Breakdown of student cohort by performance brackets.</p>
                 
-                <div className="flex items-center justify-around py-4">
-                  {/* SVG Donut Chart */}
-                  <div className="relative w-36 h-36 flex items-center justify-center">
+                <div className="flex items-center justify-around py-3">
+                  <div className="relative w-32 h-32 flex items-center justify-center">
                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                      <path className="text-red-500" strokeWidth="4" stroke="currentColor" fill="none" strokeDasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                      <path className="text-blue-500" strokeWidth="4" strokeDasharray="83, 100" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                      <path className="text-green-500" strokeWidth="4" strokeDasharray="50, 100" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="text-red-600" strokeWidth="4" stroke="currentColor" fill="none" strokeDasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="text-blue-600" strokeWidth="4" strokeDasharray="83, 100" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="text-emerald-600" strokeWidth="4" strokeDasharray="50, 100" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                     </svg>
                     <div className="absolute flex flex-col items-center">
-                      <span className="text-xl font-bold text-gray-900">240</span>
-                      <span className="text-[10px] text-gray-500 font-bold uppercase">Total</span>
+                      <span className="text-lg font-bold text-slate-900">240</span>
+                      <span className="text-[10px] text-slate-600 font-semibold uppercase">Total</span>
                     </div>
                   </div>
 
-                  <div className="space-y-2 text-xs font-bold">
+                  <div className="space-y-1.5 text-xs font-semibold">
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded bg-green-500"></div>
-                      <span className="text-gray-800">Distinction (&gt;80%): 120 (50%)</span>
+                      <div className="w-3 h-3 rounded bg-emerald-600"></div>
+                      <span className="text-slate-800">Distinction (&gt;80%): 120 (50%)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded bg-blue-500"></div>
-                      <span className="text-gray-800">Average (60-80%): 80 (33.3%)</span>
+                      <div className="w-3 h-3 rounded bg-blue-600"></div>
+                      <span className="text-slate-800">Average (60-80%): 80 (33.3%)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded bg-red-500"></div>
-                      <span className="text-gray-800">Weak (&lt;60%): 40 (16.7%)</span>
+                      <div className="w-3 h-3 rounded bg-red-600"></div>
+                      <span className="text-slate-800">Weak (&lt;60%): 40 (16.7%)</span>
                     </div>
                   </div>
                 </div>
@@ -250,17 +240,17 @@ export default function TeacherDashboard({ user, onLogout }) {
 
             </section>
 
-            {/* Error Misconception Clusters */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
-              <h3 className="font-bold text-gray-900 text-base">Class Error Misconception Clusters</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Misconception Clusters */}
+            <div className="bg-slate-50 rounded border border-slate-300 p-5 space-y-3">
+              <h3 className="font-bold text-slate-900 text-sm">Class Error Misconception Clusters</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {FALLBACK_ANALYTICS.error_clusters.map(c => (
-                  <div key={c.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                  <div key={c.id} className="p-3 bg-white border border-slate-200 rounded space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-gray-900">{c.cluster_name}</span>
+                      <span className="font-bold text-xs text-slate-900">{c.cluster_name}</span>
                       <span className="px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-800 rounded">{c.frequency} Students ({c.percentage}%)</span>
                     </div>
-                    <p className="text-xs text-gray-600">{c.description}</p>
+                    <p className="text-xs text-slate-600">{c.description}</p>
                   </div>
                 ))}
               </div>
@@ -270,30 +260,26 @@ export default function TeacherDashboard({ user, onLogout }) {
 
         {/* TAB 2: MALPRACTICE RADAR */}
         {activeTab === 'malpractice' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm flex items-center justify-between">
+          <div className="space-y-4">
+            <div className="bg-slate-50 rounded border border-slate-300 p-4 flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Malpractice & Collusion Audit Radar</h2>
-                <p className="text-xs text-gray-600 mt-1">Evaluates Cohort Malpractice Index (CMI = CosSim × Shared Error Pattern Match).</p>
+                <h2 className="text-sm font-bold text-slate-900">Malpractice & Collusion Audit Radar</h2>
+                <p className="text-xs text-slate-600 mt-0.5">Evaluates Cohort Malpractice Index (CMI = CosSim * Shared Error Pattern Match).</p>
               </div>
-              <span className="px-3 py-1 bg-red-100 text-red-700 font-bold text-xs rounded-full">
-                CMI Threshold: 0.88
+              <span className="px-2.5 py-1 bg-red-100 text-red-800 font-bold text-xs rounded">
+                Threshold: CMI &gt;= 0.88
               </span>
             </div>
 
-            <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
-              <h3 className="font-bold text-gray-900 text-base">Flagged Suspicious Similarity Pair</h3>
+            <div className="bg-slate-50 rounded border border-slate-300 p-5 space-y-3">
+              <h3 className="font-bold text-slate-900 text-sm">Flagged Collusion Pair Detail</h3>
               {FALLBACK_MALPRACTICE.collusion_pairs.map(pair => (
-                <div key={pair.id} className="p-5 bg-red-50 border border-red-200 rounded-lg space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-red-900 text-sm">
-                      {pair.student_a_name} ({pair.student_a_reg}) ↔ {pair.student_b_name} ({pair.student_b_reg})
-                    </h4>
-                    <span className="px-3 py-1 bg-red-600 text-white font-bold text-xs rounded">
-                      CMI = {pair.cmi_score}
-                    </span>
+                <div key={pair.id} className="p-4 bg-red-50 border border-red-300 rounded space-y-1 text-xs">
+                  <div className="flex justify-between font-bold text-red-900">
+                    <span>{pair.student_a_name} ({pair.student_a_reg}) ↔ {pair.student_b_name} ({pair.student_b_reg})</span>
+                    <span className="px-2 py-0.5 bg-red-600 text-white rounded">CMI = {pair.cmi_score}</span>
                   </div>
-                  <p className="text-xs text-red-800">{pair.flagged_reason}</p>
+                  <p className="text-red-800">{pair.flagged_reason}</p>
                 </div>
               ))}
             </div>
@@ -302,112 +288,106 @@ export default function TeacherDashboard({ user, onLogout }) {
 
         {/* TAB 3: AUTO-EVALUATOR & RUBRIC STUDIO */}
         {activeTab === 'auto_evaluator' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Create Custom Rubric Form */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
-              <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-600" /> Decompose Rubric into Atomic Units
-              </h3>
+            <div className="bg-slate-50 rounded border border-slate-300 p-5 space-y-3">
+              <h3 className="font-bold text-slate-900 text-sm border-b border-slate-200 pb-2">Decompose Rubric into Atomic Units</h3>
               
               <form onSubmit={handleCreateRubric} className="space-y-3 text-xs">
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Exam Title</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Exam Title</label>
                   <input
                     type="text"
                     value={assTitle}
                     onChange={(e) => setAssTitle(e.target.value)}
-                    placeholder="e.g. Thermodynamics CAT-1 Exam"
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none"
+                    placeholder="Thermodynamics CAT-1 Exam"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded text-slate-900 text-xs focus:outline-none"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Raw Answer Key / Marking Scheme</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Raw Answer Key / Marking Scheme</label>
                   <textarea
                     rows={4}
                     value={assKeyText}
                     onChange={(e) => setAssKeyText(e.target.value)}
-                    placeholder="1. Concept: Establish reference state T_0 = 298.15 K, P_0 = 1 atm.\n2. Formula: Q - W = delta U.\n3. Result: Q_net = 384.6 kJ."
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-gray-900 focus:outline-none"
+                    placeholder="1. Concept: Establish reference state T_0 = 298.15 K, P_0 = 1 atm.\n2. Formula: Q - W = delta U."
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded font-mono text-slate-900 text-xs focus:outline-none"
                     required
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition"
+                  className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded text-xs transition"
                 >
                   Decompose Rubric & Save Assignment
                 </button>
               </form>
 
               {evalMsg && (
-                <div className="p-3 bg-green-100 border border-green-300 text-green-800 rounded-lg text-xs font-bold">
+                <div className="p-2.5 bg-emerald-100 border border-emerald-300 text-emerald-800 rounded text-xs font-semibold">
                   {evalMsg}
                 </div>
               )}
             </div>
 
-            {/* Test Custom Student Derivation Form */}
-            <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
-              <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                <Send className="w-5 h-5 text-blue-600" /> Evaluate Custom Student Derivation
-              </h3>
+            <div className="bg-slate-50 rounded border border-slate-300 p-5 space-y-3">
+              <h3 className="font-bold text-slate-900 text-sm border-b border-slate-200 pb-2">Evaluate Custom Student Script</h3>
 
               <form onSubmit={handleEvaluateCustomScript} className="space-y-3 text-xs">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block font-bold text-gray-700 mb-1">Student Name</label>
+                    <label className="block font-semibold text-slate-700 mb-1">Student Name</label>
                     <input
                       type="text"
                       value={studentName}
                       onChange={(e) => setStudentName(e.target.value)}
                       placeholder="Ananya Sharma"
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded text-slate-900 text-xs focus:outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-gray-700 mb-1">Reg Number</label>
+                    <label className="block font-semibold text-slate-700 mb-1">Reg Number</label>
                     <input
                       type="text"
                       value={regNo}
                       onChange={(e) => setRegNo(e.target.value)}
                       placeholder="26BCE0888"
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded text-slate-900 text-xs focus:outline-none"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Step 1 Derivation</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Step 1 Derivation</label>
                   <input
                     type="text"
                     value={step1Text}
                     onChange={(e) => setStep1Text(e.target.value)}
                     placeholder="State reference conditions T_0 = 298.15 K."
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-gray-900 focus:outline-none"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded font-mono text-slate-900 text-xs focus:outline-none"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition"
+                  className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded text-xs transition"
                 >
                   Run Agentic Evaluation & Compute RAS
                 </button>
               </form>
 
               {evalResult && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2 text-xs">
-                  <div className="flex justify-between font-bold text-blue-900">
+                <div className="p-3 bg-white border border-slate-300 rounded text-xs space-y-1">
+                  <div className="flex justify-between font-bold text-slate-900">
                     <span>{evalResult.student} ({evalResult.regNo})</span>
                     <span>RAS Score: {evalResult.rasScore}%</span>
                   </div>
-                  <p className="text-green-700 font-bold">✓ Derivation Evaluated Live! No collusion detected.</p>
+                  <p className="text-emerald-700 font-semibold">Derivation Evaluated Live. No collusion detected.</p>
                 </div>
               )}
             </div>
@@ -417,16 +397,27 @@ export default function TeacherDashboard({ user, onLogout }) {
 
         {/* TAB 4: PYQ VAULT */}
         {activeTab === 'pyq' && (
-          <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-gray-900 text-lg">PYQ Repository Vault</h3>
-            <p className="text-xs text-gray-600">Past year examination papers and atomic marking schemes categorized for faculty review.</p>
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg font-mono text-xs text-gray-800">
-              Applied Thermodynamics 2025 FAT • Multivariable Calculus 2025 CAT-1 • DSA 2024 CAT-2
+          <div className="bg-slate-50 rounded border border-slate-300 p-5 space-y-3 text-xs">
+            <h3 className="font-bold text-slate-900 text-sm">PYQ Repository Vault</h3>
+            <p className="text-slate-600">Past year examination papers and atomic marking schemes categorized for faculty review.</p>
+            <div className="p-3 bg-white border border-slate-200 rounded font-mono text-slate-800">
+              Applied Thermodynamics 2025 FAT | Multivariable Calculus 2025 CAT-1 | DSA 2024 CAT-2
             </div>
           </div>
         )}
 
       </main>
+
+      {/* Institutional Footer */}
+      <footer className="border-t border-slate-200 bg-slate-50 py-4 mt-12 text-center text-xs text-slate-500 font-mono">
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+          <span>AnswerDoctor Enterprise Systems</span>
+          <div className="flex gap-4">
+            <a href="#tos" className="hover:underline">Terms of Service</a>
+            <a href="#privacy" className="hover:underline">Privacy Policy</a>
+          </div>
+        </div>
+      </footer>
 
     </div>
   );

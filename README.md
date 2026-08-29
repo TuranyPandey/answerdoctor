@@ -21,7 +21,7 @@ When students get exam scripts back, they usually see a numeric mark and a line 
   - **Mangalapalli Sohum Seshu Krish** (`26BCE0616`, Team Lead)
   - **Turany Pandey** (`26BCE0646`)
 - **GitHub Repository:** [https://github.com/sohum123451/answerdoctor](https://github.com/sohum123451/answerdoctor)
-- **Figma UI Design System:** [https://www.figma.com/design/VqJLOgjVz4WRdnOEdMHrmr/AnswerDoctor-UI-Design-System](https://www.figma.com/design/VqJLOgjVz4WRdnOEdMHrmr/AnswerDoctor-UI-Design-System)
+- **Figma UI Design System:** [https://www.figma.com/design/VqJLOgjVz4WRdnOEdMEhmr/Untitled?t=mCcqh2FUMmMXaeum-1](https://www.figma.com/design/VqJLOgjVz4WRdnOEdMEhmr/Untitled?t=mCcqh2FUMmMXaeum-1)
 - **Live Vercel Application:** [https://answerdoctor.vercel.app](https://answerdoctor.vercel.app)
 
 ---
