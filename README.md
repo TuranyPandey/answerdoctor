@@ -23,6 +23,7 @@ When students get exam scripts back, they usually see a numeric mark and a line 
   - **Rayed Rabbanee** (`26BCE0606`)
   - **Pratyush Jha** (`26BCE0604`)
   - **Turany Pandey** (`26BCE0646`)
+- **GitHub Repository:** [sohum123451/answerdoctor](https://github.com/sohum123451/answerdoctor)
 
 ---
 
@@ -108,6 +109,12 @@ Run the automated end-to-end test suite:
 ```bash
 python scratch/test_pipeline.py
 ```
+
+---
+
+## 🌐 Production & Vercel Deployment
+
+The frontend includes production Vercel configurations ([`vercel.json`](file:///c:/Users/manga/hackathons/practise/answerdoctor/vercel.json) & [`frontend/vercel.json`](file:///c:/Users/manga/hackathons/practise/answerdoctor/frontend/vercel.json)) supporting Vite monorepo builds (`npm run --prefix frontend build`).
 
 ---
 

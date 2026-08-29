@@ -25,3 +25,8 @@ backend/*.db
 Thumbs.db
 .vscode/
 .idea/
+
+.next
+.vercel
+.env
+.env.*
