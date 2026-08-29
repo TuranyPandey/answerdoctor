@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, BookOpenCheck, FlaskConical, LogIn } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8008/api';
 
@@ -8,7 +9,7 @@ const DEMO_ACCOUNTS = {
   student: { email: 'sohum@vit.ac.in', full_name: 'Mangalapalli Sohum Seshu Krish', register_number: '26BCE0616', role: 'student' }
 };
 
-export default function DemoAccess({ role, onLogin, onBack }) {
+export default function DemoAccess({ role, onLogin, onBack, theme, onToggleTheme }) {
   const account = DEMO_ACCOUNTS[role] || DEMO_ACCOUNTS.student;
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState('');
@@ -33,7 +34,8 @@ export default function DemoAccess({ role, onLogin, onBack }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+    <div className="theme-page page-transition min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans relative">
+      <div className="absolute right-5 top-5"><ThemeToggle theme={theme} onToggle={onToggleTheme} /></div>
       <div className="w-full max-w-md">
         <button onClick={onBack} className="mb-5 flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
           <ArrowLeft className="w-4 h-4" /> Change role

@@ -3,6 +3,7 @@ import {
   LogOut, FileText, TrendingUp, AlertCircle, CheckCircle, Clock, 
   HelpCircle, BookOpen, Layers, Sparkles, Send, Award, Target, Check, X
 } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8008/api';
 
@@ -85,7 +86,7 @@ const PYQ_LIST = [
   }
 ];
 
-export default function StudentDashboard({ user, onLogout }) {
+export default function StudentDashboard({ user, onLogout, theme, onToggleTheme }) {
   const [activeTab, setActiveTab] = useState('evaluations'); // 'evaluations', 'reasoning_map', 'doubts', 'pyq'
   const [submission, setSubmission] = useState(FALLBACK_SUBMISSION);
   const [retryModalStep, setRetryModalStep] = useState(null);
@@ -163,20 +164,23 @@ export default function StudentDashboard({ user, onLogout }) {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
               <h1 className="text-2xl font-bold text-gray-900">Hi, {user.full_name || "Student Evaluator"}!</h1>
               <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">{dataSource}</span>
             </div>
             <p className="text-xs text-gray-600 mt-0.5">Student workspace • {user.email || "student@vitstudent.ac.in"} • ID: {user.register_number || "26BCE0616"}</p>
           </div>
 
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-          >
-            <LogOut size={16} /> Sign Out
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} compact />
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition whitespace-nowrap"
+            >
+              <LogOut size={16} /> Sign Out
+            </button>
+          </div>
         </div>
 
         {/* Navigation Tabs */}
@@ -232,7 +236,7 @@ export default function StudentDashboard({ user, onLogout }) {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main key={activeTab} className="dashboard-view-transition max-w-7xl mx-auto px-6 py-8">
         
         {/* TAB 1: MY SUBMISSIONS & CHARTS */}
         {activeTab === 'evaluations' && (

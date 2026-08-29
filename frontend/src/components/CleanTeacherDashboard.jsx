@@ -3,6 +3,7 @@ import {
   LogOut, Users, BookOpen, BarChart3, ShieldAlert, 
   Sparkles, Send, FileText, CheckCircle, Search, Grid
 } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8008/api';
 
@@ -38,7 +39,7 @@ const FALLBACK_MALPRACTICE = {
   ]
 };
 
-export default function TeacherDashboard({ user, onLogout }) {
+export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme }) {
   const [activeTab, setActiveTab] = useState('analytics'); // 'analytics', 'malpractice', 'auto_evaluator', 'pyq'
   
   // Custom Dynamic Assignment Creation
@@ -118,17 +119,20 @@ export default function TeacherDashboard({ user, onLogout }) {
       {/* Top Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold text-gray-900">Welcome, {user.full_name || "Prof. Rajesh Sharma"}</h1>
             <p className="text-xs text-gray-600 mt-0.5">Teacher workspace • {user.email || "prof.sharma@vit.ac.in"} • Mechanical Engineering</p>
           </div>
 
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-          >
-            <LogOut size={16} /> Sign Out
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} compact />
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition whitespace-nowrap"
+            >
+              <LogOut size={16} /> Sign Out
+            </button>
+          </div>
         </div>
 
         {/* Navigation Tabs */}
@@ -184,7 +188,7 @@ export default function TeacherDashboard({ user, onLogout }) {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main key={activeTab} className="dashboard-view-transition max-w-7xl mx-auto px-6 py-8">
         
         {/* TAB 1: CLASSROOM ANALYTICS & CHARTS */}
         {activeTab === 'analytics' && (

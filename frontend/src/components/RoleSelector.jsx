@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { BookOpen, Stethoscope, Users } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
-export default function RoleSelector({ onSelectRole }) {
+export default function RoleSelector({ onSelectRole, theme, onToggleTheme }) {
   const [selectedRole, setSelectedRole] = useState('teacher');
   const roles = [
     { id: 'teacher', label: 'Teacher', icon: Users, selected: 'border-blue-600 bg-blue-50 text-blue-600' },
@@ -9,7 +10,8 @@ export default function RoleSelector({ onSelectRole }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+    <div className="theme-page page-transition min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans relative">
+      <div className="absolute right-5 top-5"><ThemeToggle theme={theme} onToggle={onToggleTheme} /></div>
       <div className="w-full max-w-lg space-y-8">
         <div className="text-center">
           <div className="inline-flex items-center gap-2 mb-3"><Stethoscope className="w-8 h-8 text-blue-600" /><h1 className="text-3xl font-bold text-gray-900">AnswerDoctor</h1></div>
