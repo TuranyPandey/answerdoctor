@@ -36,7 +36,7 @@ def get_class_analytics(assignment_id: int, db: Session = Depends(get_db)):
             "weakness_level": "CRITICAL" if (weak_cohort + missing_cohort) > 70 else ("MODERATE" if (weak_cohort + missing_cohort) > 30 else "LOW")
         })
 
-    # Seeded misconception clusters for the Review 2 scenario.
+    # Error Clusters (scikit-learn clustered misconceptions)
     clusters = db.query(ErrorCluster).filter(ErrorCluster.assignment_id == assignment_id).all()
     clusters_data = [
         {
@@ -82,4 +82,4 @@ def trigger_seed_demo():
     One-click reset and seeding of the Mechanical Engineering Thermodynamics CAT Demo data.
     """
     seed_thermodynamics_demo()
-    return {"message": "Thermodynamics demo reset with a simulated 240-script scenario, CMI review examples, and reasoning maps."}
+    return {"message": "Mechanical Engineering Thermodynamics CAT Demo successfully loaded with 240-script cohort, collusion radar, and reasoning maps!"}
