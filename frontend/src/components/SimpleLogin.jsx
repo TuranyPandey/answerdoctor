@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { LogIn, Mail, Lock, X } from 'lucide-react';
+import { LogIn, Mail, Lock, User, X } from 'lucide-react';
 
 export default function SimpleLogin({ onLoginSuccess, selectedRole = 'student' }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [role, setRole] = useState(selectedRole);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [googleName, setGoogleName] = useState('');
@@ -12,11 +14,15 @@ export default function SimpleLogin({ onLoginSuccess, selectedRole = 'student' }
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const defaultName = fullName.trim() || (email ? email.split('@')[0] : (role === 'teacher' ? "Prof. Rajesh Sharma" : "Mangalapalli Sohum"));
+    const defaultEmail = email.trim() || (role === 'teacher' ? "prof.sharma@vit.ac.in" : "sohum@vitstudent.ac.in");
+
     const user = {
       id: Date.now(),
-      full_name: email.split('@')[0] || "User",
-      email: email || "user@vitstudent.ac.in",
+      full_name: defaultName,
+      email: defaultEmail,
       role: role,
+      register_number: role === 'student' ? "26BCE0616" : undefined,
       token: "jwt-token-" + Date.now()
     };
     if (onLoginSuccess) onLoginSuccess(user);
@@ -24,14 +30,15 @@ export default function SimpleLogin({ onLoginSuccess, selectedRole = 'student' }
 
   const handleGoogleModalSubmit = (e) => {
     e.preventDefault();
-    const finalName = googleName.trim() || "Google User";
-    const finalEmail = googleEmail.trim() || "user@gmail.com";
+    const finalName = googleName.trim() || (role === 'teacher' ? "Prof. Rajesh Sharma" : "Google Evaluator");
+    const finalEmail = googleEmail.trim() || (role === 'teacher' ? "prof.sharma@vit.ac.in font-medium" : "evaluator@gmail.com");
     
     const user = {
       id: Date.now(),
       full_name: finalName,
       email: finalEmail,
       role: role,
+      register_number: role === 'student' ? "26BCE0616" : undefined,
       token: "google-jwt-token-" + Date.now(),
       auth_provider: "google",
       is_google_verified: true
@@ -47,8 +54,8 @@ export default function SimpleLogin({ onLoginSuccess, selectedRole = 'student' }
         {/* Header */}
         <div className="text-center space-y-1">
           <div className="inline-flex items-center gap-2 mb-1">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-              <LogIn className="w-5 h-5" />
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
+              AD
             </div>
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">AnswerDoctor</h1>
           </div>
@@ -64,7 +71,7 @@ export default function SimpleLogin({ onLoginSuccess, selectedRole = 'student' }
               role === 'student' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Student Sign In
+            Student Portal
           </button>
           <button
             type="button"
@@ -73,12 +80,44 @@ export default function SimpleLogin({ onLoginSuccess, selectedRole = 'student' }
               role === 'teacher' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Faculty Sign In
+            Faculty Portal
           </button>
         </div>
 
-        {/* Login Form */}
+        {/* Auth Type Switcher (Sign In / Sign Up) */}
+        <div className="flex justify-between items-center text-xs border-b border-slate-100 pb-2">
+          <span className="font-bold text-slate-900">
+            {role === 'teacher' ? 'Faculty Portal' : 'Student Portal'} : {isSignUp ? 'New Account Enrollment' : 'Account Sign In'}
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-blue-600 font-bold hover:underline"
+          >
+            {isSignUp ? 'Switch to Sign In' : 'Need an Account? Sign Up'}
+          </button>
+        </div>
+
+        {/* Login / Signup Form */}
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          
+          {isSignUp && (
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1.5">Full Name</label>
+              <div className="relative">
+                <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder={role === 'teacher' ? "Prof. Rajesh Sharma" : "Mangalapalli Sohum"}
+                  className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 font-medium"
+                  required
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block font-semibold text-slate-700 mb-1.5">Institutional Email</label>
             <div className="relative">
@@ -87,7 +126,7 @@ export default function SimpleLogin({ onLoginSuccess, selectedRole = 'student' }
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={role === 'student' ? "student@vitstudent.ac.in" : "faculty@vit.ac.in"}
+                placeholder={role === 'student' ? "sohum@vitstudent.ac.in" : "prof.sharma@vit.ac.in"}
                 className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 font-medium"
                 required
               />
@@ -102,7 +141,7 @@ export default function SimpleLogin({ onLoginSuccess, selectedRole = 'student' }
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
+                placeholder="••••••••"
                 className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 font-medium"
                 required
               />
@@ -113,7 +152,7 @@ export default function SimpleLogin({ onLoginSuccess, selectedRole = 'student' }
             type="submit"
             className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition shadow-xs"
           >
-            Sign In with Email
+            {isSignUp ? `Complete ${role === 'teacher' ? 'Faculty' : 'Student'} Enrollment` : `Sign In to ${role === 'teacher' ? 'Faculty Portal' : 'Student Portal'}`}
           </button>
         </form>
 
@@ -153,7 +192,7 @@ export default function SimpleLogin({ onLoginSuccess, selectedRole = 'student' }
                   type="text"
                   value={googleName}
                   onChange={(e) => setGoogleName(e.target.value)}
-                  placeholder="e.g. Judge / Evaluator"
+                  placeholder={role === 'teacher' ? "Prof. Rajesh Sharma" : "Mangalapalli Sohum"}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 font-medium"
                   required
                 />
@@ -165,7 +204,7 @@ export default function SimpleLogin({ onLoginSuccess, selectedRole = 'student' }
                   type="email"
                   value={googleEmail}
                   onChange={(e) => setGoogleEmail(e.target.value)}
-                  placeholder="evaluator@gmail.com"
+                  placeholder={role === 'teacher' ? "prof.sharma@vit.ac.in" : "sohum@gmail.com"}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 font-medium"
                   required
                 />
