@@ -1,77 +1,115 @@
-# AnswerDoctor
+# AnswerDoctor 🩺
 
-Reasoning-level diagnosis and batch grading for handwritten answer scripts, with cohort collusion detection built in.
+> **Reasoning-level diagnosis and batch grading for handwritten answer scripts, with collusion detection built in.**
 
-## Track & Architecture
-- **Track**: AI/ML & Open Innovation (DevJams 2026)
-- **Domain**: LMS Infrastructure & Script Diagnostics
-- **Core Engine**: Gemini 3.6 Flash Multimodal Pipeline, FastAPI, and a Next.js monitoring dashboard
-- **Key Metrics**:
-  - **RAS (Rubric-Alignment Score)**: score derived from matched rubric units across the reasoning map
-  - **CMI (Cohort Malpractice Index)**: pairwise similarity and error-pattern comparison used to flag collusion
+---
 
-## Monorepo Layout
-- `/backend`: FastAPI service for rubric decomposition, script grading, and reasoning diagnostics
-- `/frontend`: Next.js diagnostic dashboard for teacher and student workflows
-- `/demo_assets`: demo inputs for benchmark and collusion runs
-- `/docs`: supporting project documentation
+## 📌 Executive Summary
 
-## Local Setup
+When students get exam scripts back, they usually see a numeric mark and a line struck through in red pen — almost never the **reason** why their reasoning broke. 
+**AnswerDoctor** is a role-based LMS infrastructure platform sitting on top of a multi-agent AI pipeline. It replaces blind markdowns with step-by-step **Reasoning Maps**, class-wide misconception heatmaps, step-level retry practice drills, and built-in malpractice collusion detection.
 
-### Backend
-```powershell
-cd "C:\Users\manga\hackathons\answerdoctor\backend"
-& "C:\Users\manga\hackathons\answerdoctor\.venv\Scripts\python.exe" -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+- **One-Line Pitch:** *AnswerDoctor doesn't just mark whether an answer is right — it shows a student where their reasoning broke, gives them a way to fix it, and shows the teacher where the whole class is making the same mistake.*
+
+---
+
+## 👥 Team & Submission Info
+
+- **Team Name:** `trpSurgewave`
+- **Track / Domain:** AI/ML & Open Innovation — LMS infrastructure & script diagnostics
+- **Submission Stage:** Review 0 screening submission
+- **Team Members:**
+  - **Mangalapalli Sohum Seshu Krish** (`26BCE0616`, Team Lead)
+  - **Rayed Rabbanee** (`26BCE0606`)
+  - **Pratyush Jha** (`26BCE0604`)
+  - **Turany Pandey** (`26BCE0646`)
+
+---
+
+## 🚀 Key Features
+
+### 1. The Reasoning Map
+Every answer is represented as a structured map:
+$$\text{Concept} \longrightarrow \text{Approach} \longrightarrow \text{Steps} \longrightarrow \text{Transformation} \longrightarrow \text{Result}$$
+- **For Students:** Pinpoints the exact line where reasoning broke (e.g. *"Reasoning break at Step 1: You applied the first law formula before establishing the required reference state (T_0, P_0)"*).
+- **For Teachers:** Cohort-wide view of how the class approached each question and which misconceptions recur.
+
+### 2. Rubric Decomposer Agent (LangGraph)
+Deconstructs marking schemes into atomic gradeable units:
+- Categories: `Concept`, `Formula`, `Intermediate Step`, `Units`, `Final Answer`
+- Weights sum strictly to `1.0` (100%).
+- Individual similarity thresholds ($\gamma \ge 0.60$).
+
+### 3. Scoring Engine: RAS & CMI
+
+#### Rubric-Alignment Score (RAS)
+$$\text{RAS} = \frac{\sum (\text{Matched\_Units} \times \text{Unit\_Weight})}{\sum (\text{Total\_Units} \times \text{Unit\_Weight})} \times 100$$
+Any unit scoring below $\gamma = 0.60$ is flagged as *"Missing / Weak"* rather than silently penalized.
+
+#### Cohort Malpractice Index (CMI)
+$$\text{CMI}_{ij} = \text{CosSim}(\text{Emb}_i, \text{Emb}_j) \times \text{ErrorPatternMatch}(S_i, S_j)$$
+A pairwise CMI score $\ge 0.88$ flags suspicious collusion pairs (e.g. Sohum `26BCE0616` & Rayed `26BCE0606` with $\text{CMI} = 0.92$ on shared reference state omission).
+
+### 4. Interactive Step-Level Retry Drill
+When a student identifies a reasoning break, they can launch an interactive follow-up practice drill targeting the exact failed concept. Correctly answering the drill awards credit directly back to their RAS score!
+
+### 5. Vision Agent & Preserved Diagram Crops
+Spatial OCR alignment separates text derivations from handwritten circuit sketches, free-body diagrams, and P-V process curves — preserving diagrams as visual image crops alongside step diagnostics so diagrams are never mis-scored as missing text.
+
+### 6. Scikit-Learn Cohort Misconception Clusters
+Clusters recurring misconception types across semester scripts (e.g., *33.3% of class omitted reference state baselines*).
+
+---
+
+## 🛠️ Architecture & Tech Stack
+
+| Layer | Technologies | Description |
+| :--- | :--- | :--- |
+| **Agent Swarm** | LangGraph, Sentence-Transformers, Scikit-learn | Rubric decomposition, deterministic semantic alignment ($\gamma \ge 0.60$), CMI malpractice auditing |
+| **Backend API** | FastAPI, SQLite (SQLAlchemy), Pydantic | Role-based REST endpoints, batch script processing, SQLite foreign key pragmas |
+| **Frontend Web App** | React 19, Vite, Tailwind CSS, Lucide Icons | Dark glassmorphic cockpit, interactive Reasoning Map canvas, CMI matrix visualizer |
+| **Vision & OCR** | OpenCV, Spatial Bounding Box Alignment | Digitizes handwritten scripts, preserves diagram image crops |
+
+---
+
+## 💻 Quick Start & Running Locally
+
+### 1. Prerequisites
+- Python 3.10+
+- Node.js 18+
+
+### 2. Backend Setup
+```bash
+cd backend
+python -m pip install -r requirements.txt
+
+# Run FastAPI server
+python -m uvicorn main:app --host 127.0.0.1 --port 8008
 ```
 
-Verify the app is live at:
-- http://127.0.0.1:8000/health
+### 3. Frontend Setup
+```bash
+cd frontend
+npm install
 
-### Frontend
-```powershell
-cd "C:\Users\manga\hackathons\answerdoctor\frontend"
-# Create or update .env.local if needed
-# NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-npx next dev --hostname 127.0.0.1 --port 3000
+# Launch Vite dev server
+npx vite --port 3000
 ```
 
-Open the app at:
-- http://127.0.0.1:3000
+### 4. Open Application
+Navigate to `http://localhost:3000/` in your browser.
+Click **"Load Thermo CAT Demo"** in the top navigation bar to instantly pre-populate the 240-script Thermodynamics CAT-1 cohort demo!
 
-### Environment Variables
-Create a local environment file in the frontend directory for local API wiring:
+---
 
-```env
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+## 🧪 Testing
+
+Run the automated end-to-end test suite:
+```bash
+python scratch/test_pipeline.py
 ```
 
-This keeps the Next.js app pointing at the running local FastAPI backend during development.
+---
 
-## Demo Dry-Run Workflow
-
-1. **Rubric decomposition**
-   - Paste a prompt or upload a rubric answer key
-   - Confirm the generated rubric units sum to 1.0
-
-2. **Single script benchmark**
-   - Upload `script_A_clean.png`
-   - Validate that the Rubric-Alignment Score is 1.0 and all tags are marked as matched
-
-3. **Single script diagnosis**
-   - Upload `script_B_broken.png`
-   - Validate that broken intermediate steps are red-flagged with a concise root-cause diagnosis
-
-4. **Cohort collusion radar**
-   - Upload multiple scripts together, including the broken and collusion pair
-   - Confirm the pairwise matrix and CMI threshold trigger the collusion alert when the score is at or above 0.88
-
-## Submission Checklist
-- Ensure no active API keys or local env files are pushed to the repo
-- Keep the backend running for local demos
-- Record a 2–3 minute walkthrough covering the rubric, clean script, broken script, and collusion matrix flow
-- Verify the final frontend build passes before deployment
-
-## Notes
-- The local backend is implemented in the FastAPI app at `/backend/main.py`
-- The frontend app uses a Next.js dashboard layout and Tailwind styling for the auth and rubric experience
-- The repo is expected to stay free of tracked secrets, local `.env` files, and generated build artifacts
+## 📄 License
+MIT License. Built for VIT Review 0 Screening Submission by Team `trpSurgewave`.
