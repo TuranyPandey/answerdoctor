@@ -8,11 +8,17 @@
     "start": "next start"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
+    "framer-motion": "^11.11.11",
+    "lucide-react": "^0.475.0",
     "next": "14.2.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "lucide-react": "^0.475.0",
-    "clsx": "^2.1.1",
     "tailwind-merge": "^3.0.1"
+  },
+  "devDependencies": {
+    "autoprefixer": "file:\n/** @type {import(tailwindcss).Config} */\nmodule.exports = {\n  content: [\n    ./pages/**/*.{js,ts,jsx,tsx,mdx},\n    ./components/**/*.{js,ts,jsx,tsx,mdx},\n    ./app/**/*.{js,ts,jsx,tsx,mdx},\n  ],\n  theme: {\n    extend: {},\n  },\n  plugins: [],\n}\n@",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3"
   }
 }
