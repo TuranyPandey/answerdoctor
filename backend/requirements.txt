@@ -1,9 +1,14 @@
 fastapi>=0.100.0
 uvicorn>=0.22.0
 sqlalchemy>=2.0.0
+<<<<<<< HEAD
 pydantic>=2.0.0
 scikit-learn>=1.2.0
 numpy>=1.24.0
+=======
+psycopg[binary]>=3.2.0
+pydantic>=2.0.0
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
 python-multipart>=0.0.6
 requests>=2.28.0
 pillow>=9.5.0

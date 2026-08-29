@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
+<<<<<<< HEAD
 from models import CollusionPair, Submission
+=======
+from models import CollusionPair, Submission, SubmissionStep
+from services.semantic_aligner import compute_similarity
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/malpractice", tags=["Malpractice Radar"])
@@ -33,16 +38,29 @@ def get_malpractice_report(assignment_id: int, db: Session = Depends(get_db)):
     subs = db.query(Submission).filter(Submission.assignment_id == assignment_id).all()
     student_labels = [f"{s.student_name} ({s.register_number})" for s in subs]
     
+<<<<<<< HEAD
+=======
+    submission_text = {}
+    for sub in subs:
+        steps = db.query(SubmissionStep).filter(SubmissionStep.submission_id == sub.id).order_by(SubmissionStep.step_number).all()
+        submission_text[sub.id] = " ".join(step.student_text for step in steps)
+
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
     matrix = []
     for i, s1 in enumerate(subs):
         row = []
         for j, s2 in enumerate(subs):
             if i == j:
                 row.append(1.0)
+<<<<<<< HEAD
             elif (s1.register_number in ("26BCE0616", "26BCE0606")) and (s2.register_number in ("26BCE0616", "26BCE0606")):
                 row.append(0.92) # Sohum & Rayed Collusion Pair CMI
             else:
                 row.append(round(0.15 + ((i * 3 + j * 7) % 25) / 100.0, 2))
+=======
+            else:
+                row.append(compute_similarity(submission_text[s1.id], submission_text[s2.id]))
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
         matrix.append(row)
 
     return {

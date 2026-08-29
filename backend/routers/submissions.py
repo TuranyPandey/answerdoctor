@@ -49,11 +49,33 @@ def get_student_submission(student_id: int, assignment_id: int, db: Session = De
         Submission.student_id == student_id
     ).first()
     if not sub:
+<<<<<<< HEAD
         sub = db.query(Submission).filter(Submission.assignment_id == assignment_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
     return get_submission_details(sub.id, db)
 
+=======
+        raise HTTPException(status_code=404, detail="Submission not found")
+    return get_submission_details(sub.id, db)
+
+@router.get("/student/{student_id}/latest")
+def get_latest_student_submission(student_id: int, db: Session = Depends(get_db)):
+    sub = (
+        db.query(Submission)
+        .filter(Submission.student_id == student_id)
+        .order_by(Submission.submission_time.desc(), Submission.id.desc())
+        .first()
+    )
+    if not sub:
+        raise HTTPException(status_code=404, detail="No evaluated answers yet")
+    result = get_submission_details(sub.id, db)
+    student_submissions = db.query(Submission).filter(Submission.student_id == student_id).all()
+    result["student_submission_count"] = len(student_submissions)
+    result["student_passed_count"] = sum(item.total_ras_score >= 60 for item in student_submissions)
+    return result
+
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
 @router.get("/{submission_id}")
 def get_submission_details(submission_id: int, db: Session = Depends(get_db)):
     sub = db.query(Submission).filter(Submission.id == submission_id).first()
@@ -106,6 +128,10 @@ def get_submission_details(submission_id: int, db: Session = Depends(get_db)):
     return {
         "submission_id": sub.id,
         "assignment_id": sub.assignment_id,
+<<<<<<< HEAD
+=======
+        "assignment_title": sub.assignment.title if sub.assignment else "Assignment",
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
         "student_name": sub.student_name,
         "register_number": sub.register_number,
         "total_ras_score": sub.total_ras_score,
@@ -280,6 +306,7 @@ def process_step_retry(req: StepRetryRequest, db: Session = Depends(get_db)):
         "new_retry_status": step.retry_status,
         "new_total_ras": step.submission.total_ras_score if step.submission else 60.0
     }
+<<<<<<< HEAD
 
 @router.post("/batch-eval")
 def run_batch_evaluation(db: Session = Depends(get_db)):
@@ -303,3 +330,5 @@ def run_batch_evaluation(db: Session = Depends(get_db)):
         "cohort_results": results
     }
 
+=======
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49

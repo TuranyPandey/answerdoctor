@@ -4,53 +4,24 @@
 
 @layer base {
   :root {
-    --bg-dark: #07090e;
+    color-scheme: light;
+    --app-bg: #f8fafc;
+    --app-surface: #ffffff;
+    --app-border: #e2e8f0;
+    --app-text: #0f172a;
+    --app-muted: #64748b;
   }
+
   body {
-    background-color: #07090e;
-    color: #f8fafc;
+    background-color: var(--app-bg);
+    color: var(--app-text);
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     overflow-x: hidden;
   }
-}
 
-/* Glassmorphism Cards */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-}
-
-.glass-card-hover {
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.glass-card-hover:hover {
-  transform: translateY(-2px);
-  border-color: rgba(16, 185, 129, 0.3);
-  box-shadow: 0 12px 40px -10px rgba(16, 185, 129, 0.2);
-}
-
-/* Glowing text and borders */
-.glow-emerald {
-  box-shadow: 0 0 20px -2px rgba(16, 185, 129, 0.4);
-}
-.glow-red {
-  box-shadow: 0 0 20px -2px rgba(244, 63, 94, 0.4);
-}
-.glow-violet {
-  box-shadow: 0 0 20px -2px rgba(139, 92, 246, 0.4);
-}
-
-/* Reasoning Map Flow Nodes */
-.node-matched {
-  border-left: 4px solid #10b981;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.8) 100%);
-}
-.node-break {
-  border-left: 4px solid #f43f5e;
-  background: linear-gradient(135deg, rgba(244, 63, 94, 0.12) 0%, rgba(15, 23, 42, 0.85) 100%);
+  button, input, textarea, select {
+    font: inherit;
+  }
 }
 
 /* Custom Scrollbar */
@@ -59,12 +30,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #cbd5e1;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #94a3b8;
 }

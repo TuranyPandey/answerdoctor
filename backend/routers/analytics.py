@@ -1,14 +1,33 @@
+<<<<<<< HEAD
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
 from models import ErrorCluster, RubricUnit, SubmissionStep, Assignment
 from services.seed_data import seed_thermodynamics_demo
+=======
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from database import get_db
+from models import RubricUnit, SubmissionStep, Submission, Assignment
+from services.seed_data import seed_thermodynamics_demo
+import os
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
 @router.get("/assignment/{assignment_id}")
 def get_class_analytics(assignment_id: int, db: Session = Depends(get_db)):
+<<<<<<< HEAD
     rubric_units = db.query(RubricUnit).filter(RubricUnit.assignment_id == assignment_id).all()
+=======
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    rubric_units = db.query(RubricUnit).filter(RubricUnit.assignment_id == assignment_id).all()
+    submissions = db.query(Submission).filter(Submission.assignment_id == assignment_id).all()
+    cohort_size = len(submissions)
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
     
     # Compute weakness heatmap per rubric unit
     heatmap = []
@@ -17,6 +36,7 @@ def get_class_analytics(assignment_id: int, db: Session = Depends(get_db)):
         matched = sum(1 for s in steps if s.status == "MATCHED")
         weak = sum(1 for s in steps if s.status == "WEAK")
         missing = sum(1 for s in steps if s.status == "MISSING")
+<<<<<<< HEAD
         total = max(1, len(steps))
         
         # Scaling up to 240 cohort scripts for demo realism
@@ -24,11 +44,16 @@ def get_class_analytics(assignment_id: int, db: Session = Depends(get_db)):
         matched_cohort = matched * cohort_factor
         weak_cohort = weak * cohort_factor
         missing_cohort = missing * cohort_factor
+=======
+        total = len(steps)
+        pass_rate = round((matched / total) * 100, 1) if total else 0.0
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
 
         heatmap.append({
             "rubric_unit_id": ru.id,
             "category": ru.category,
             "label": ru.label,
+<<<<<<< HEAD
             "matched_count": matched_cohort,
             "weak_count": weak_cohort,
             "missing_count": missing_cohort,
@@ -74,6 +99,43 @@ def get_class_analytics(assignment_id: int, db: Session = Depends(get_db)):
         "weakness_heatmap": heatmap,
         "error_clusters": clusters_data,
         "alternative_solutions": alternative_solutions
+=======
+            "matched_count": matched,
+            "weak_count": weak,
+            "missing_count": missing,
+            "pass_rate_pct": pass_rate,
+            "weakness_level": "CRITICAL" if pass_rate < 50 else ("MODERATE" if pass_rate < 75 else "LOW")
+        })
+
+    clusters_data = []
+    for item in heatmap:
+        frequency = item["weak_count"] + item["missing_count"]
+        if frequency:
+            clusters_data.append({
+                "id": item["rubric_unit_id"],
+                "cluster_name": f"Difficulty with {item['label']}",
+                "frequency": frequency,
+                "percentage": round((frequency / cohort_size) * 100, 1) if cohort_size else 0.0,
+                "description": "Answers that were weak or missing for this marking-guide step."
+            })
+
+    scores = [s.total_ras_score for s in submissions]
+    distribution = {
+        "distinction": sum(score >= 80 for score in scores),
+        "average": sum(60 <= score < 80 for score in scores),
+        "weak": sum(score < 60 for score in scores),
+    }
+
+    return {
+        "assignment_id": assignment_id,
+        "assignment_title": assignment.title,
+        "cohort_total_scripts": cohort_size,
+        "class_average_ras": round(sum(scores) / cohort_size, 1) if cohort_size else 0.0,
+        "score_distribution": distribution,
+        "weakness_heatmap": heatmap,
+        "error_clusters": clusters_data,
+        "alternative_solutions": []
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
     }
 
 @router.post("/seed-demo")
@@ -81,5 +143,12 @@ def trigger_seed_demo():
     """
     One-click reset and seeding of the Mechanical Engineering Thermodynamics CAT Demo data.
     """
+<<<<<<< HEAD
     seed_thermodynamics_demo()
     return {"message": "Mechanical Engineering Thermodynamics CAT Demo successfully loaded with 240-script cohort, collusion radar, and reasoning maps!"}
+=======
+    if os.getenv("ALLOW_DEMO_RESET", "false").lower() != "true":
+        raise HTTPException(status_code=404, detail="Demo reset is disabled")
+    seed_thermodynamics_demo()
+    return {"message": "Optional synthetic Thermodynamics sample data loaded."}
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49

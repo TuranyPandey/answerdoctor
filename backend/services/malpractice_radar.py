@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 import numpy as np
+=======
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
 from services.semantic_aligner import compute_similarity
 
 def calculate_error_pattern_match(steps_a: list, steps_b: list) -> float:

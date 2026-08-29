@@ -2,7 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from routers import auth, classrooms, assignments, submissions, malpractice, analytics, pyq, doubts
+<<<<<<< HEAD
 from services.seed_data import seed_thermodynamics_demo
+=======
+import os
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -14,9 +18,19 @@ app = FastAPI(
 )
 
 # Enable CORS for Next.js / Vite frontend
+<<<<<<< HEAD
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+=======
+cors_origins = [origin.strip() for origin in os.getenv(
+    "CORS_ORIGINS", "http://127.0.0.1:3000,http://localhost:3000"
+).split(",") if origin.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,6 +48,7 @@ app.include_router(doubts.router)
 
 @app.on_event("startup")
 def startup_db_seed():
+<<<<<<< HEAD
     """Auto-seed demo data if empty on server start"""
     try:
         from database import SessionLocal
@@ -46,6 +61,12 @@ def startup_db_seed():
             seed_thermodynamics_demo()
     except Exception as e:
         print("Startup seed check:", e)
+=======
+    """Seed sample data only when explicitly requested for a demo deployment."""
+    if os.getenv("ANSWERDOCTOR_SEED_DEMO", "false").lower() == "true":
+        from services.seed_data import seed_thermodynamics_demo
+        seed_thermodynamics_demo()
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
 
 @app.get("/")
 def root():
@@ -53,6 +74,7 @@ def root():
         "status": "active",
         "app": "AnswerDoctor Enterprise Engine",
         "version": "2.0.0",
+<<<<<<< HEAD
         "demo_preloaded": True,
         "docs_url": "/docs"
     }
@@ -87,3 +109,24 @@ def demo_single_qa_pair():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8008, reload=True)
+=======
+        "persistent_database": True,
+        "demo_preloaded": os.getenv("ANSWERDOCTOR_SEED_DEMO", "false").lower() == "true",
+        "docs_url": "/docs"
+    }
+
+@app.get("/health")
+def health():
+    from sqlalchemy import text
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "connected"}
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8008")))
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49

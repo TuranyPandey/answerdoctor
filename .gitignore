@@ -1,12 +1,21 @@
+<<<<<<< HEAD
 # Dependencies & Build Outputs
+=======
+# Node / Frontend
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
 node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+<<<<<<< HEAD
 .next/
 .vercel/
 
 # Python & Virtual Envs
+=======
+
+# Python / Backend
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
 __pycache__/
 *.pyc
 *.pyo
@@ -18,6 +27,7 @@ backend/__pycache__/
 backend/services/__pycache__/
 backend/routers/__pycache__/
 
+<<<<<<< HEAD
 # Databases & Local Logs
 backend/*.db
 *.db
@@ -27,11 +37,26 @@ backend/*.db
 # Environment Variables & IDE/Agent Configs
 .env
 .env.*
+=======
+# Database & SQLite
+backend/*.db
+*.db
+
+# OS / IDE
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+<<<<<<< HEAD
 .gemini/
 .antigravity/
 brain/
 scratch/
+=======
+
+.next
+.vercel
+.env
+.env.*
+>>>>>>> da10bef05cedf4d95449967b0d62ea96e3edca49
