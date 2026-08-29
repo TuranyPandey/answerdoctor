@@ -14,9 +14,13 @@ app = FastAPI(
 )
 
 # Enable CORS for Next.js / Vite frontend
+cors_origins = [origin.strip() for origin in os.getenv(
+    "CORS_ORIGINS", "http://127.0.0.1:3000,http://localhost:3000"
+).split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,6 +54,17 @@ def root():
         "docs_url": "/docs"
     }
 
+@app.get("/health")
+def health():
+    from sqlalchemy import text
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "connected"}
+    finally:
+        db.close()
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8008, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8008")))
