@@ -1,6 +1,7 @@
 import os
 import json
 import base64
+import asyncio
 from pathlib import Path
 from typing import List, Optional, Dict, Annotated
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
@@ -28,15 +29,30 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 REKA_API_KEY = os.getenv("REKA_API_KEY")
 reka_client = Reka(api_key=REKA_API_KEY) if (Reka and REKA_API_KEY) else None
 
-app = FastAPI(title="AnswerDoctor Core API", version="1.4.0")
+app = FastAPI(title="AnswerDoctor Core API", version="1.4.1")
+
+# --- CORS ---
+# NOTE: allow_origins=["*"] combined with allow_credentials=True is rejected by
+# browsers (invalid per the CORS spec), so any credentialed fetch from the
+# frontend would silently fail. List explicit origins instead. Add your actual
+# dev/prod frontend URLs here.
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "https://answerdoctor.vercel.app",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# How long to wait on a single Gemini/Reka call before treating it as a
+# provider hang and failing fast (into fallback / a per-script error entry)
+# rather than freezing the request indefinitely.
+PROVIDER_TIMEOUT_SECONDS = 20
 
 DECOMPOSER_PROMPT = """
 You are AnswerDoctor's Rubric Decomposer Agent.
@@ -97,7 +113,18 @@ Return ONLY a valid JSON object matching this schema:
 }
 """
 
-async def evaluate_with_gemini(file_bytes: bytes, mime_type: str, rubric_context: str) -> dict:
+
+# ---------------------------------------------------------------------------
+# Provider calls
+#
+# The google-genai / reka-api clients used here are synchronous, so each call
+# is pushed onto a worker thread via asyncio.to_thread. That lets FastAPI run
+# several evaluations concurrently (see batch_evaluate) instead of blocking
+# the event loop on each one sequentially, and lets us wrap each call with a
+# timeout so a hung provider fails fast instead of freezing the request.
+# ---------------------------------------------------------------------------
+
+def _call_gemini_evaluate(file_bytes: bytes, mime_type: str, rubric_context: str) -> dict:
     response = client.models.generate_content(
         model="gemini-3.6-flash",
         contents=[
@@ -111,7 +138,15 @@ async def evaluate_with_gemini(file_bytes: bytes, mime_type: str, rubric_context
     )
     return json.loads(response.text)
 
-async def evaluate_with_reka(file_bytes: bytes, mime_type: str, rubric_context: str) -> dict:
+
+async def evaluate_with_gemini(file_bytes: bytes, mime_type: str, rubric_context: str) -> dict:
+    return await asyncio.wait_for(
+        asyncio.to_thread(_call_gemini_evaluate, file_bytes, mime_type, rubric_context),
+        timeout=PROVIDER_TIMEOUT_SECONDS,
+    )
+
+
+def _call_reka_evaluate(file_bytes: bytes, mime_type: str, rubric_context: str) -> dict:
     if not reka_client:
         raise HTTPException(status_code=500, detail="REKA_API_KEY is not configured or reka-api is not installed.")
 
@@ -139,6 +174,16 @@ async def evaluate_with_reka(file_bytes: bytes, mime_type: str, rubric_context: 
 
     return json.loads(raw_content)
 
+
+async def evaluate_with_reka(file_bytes: bytes, mime_type: str, rubric_context: str) -> dict:
+    if not reka_client:
+        raise HTTPException(status_code=500, detail="REKA_API_KEY is not configured or reka-api is not installed.")
+    return await asyncio.wait_for(
+        asyncio.to_thread(_call_reka_evaluate, file_bytes, mime_type, rubric_context),
+        timeout=PROVIDER_TIMEOUT_SECONDS,
+    )
+
+
 async def run_evaluation_pipeline(file_bytes: bytes, mime_type: str, rubric_context: str, provider: str = "gemini") -> dict:
     if provider == "reka":
         return await evaluate_with_reka(file_bytes, mime_type, rubric_context)
@@ -148,6 +193,28 @@ async def run_evaluation_pipeline(file_bytes: bytes, mime_type: str, rubric_cont
         if reka_client:
             return await evaluate_with_reka(file_bytes, mime_type, rubric_context)
         raise gemini_err
+
+
+async def safe_evaluate(file_bytes: bytes, mime_type: str, rubric_context: str, provider: str, fallback_id: str) -> dict:
+    """
+    Wraps run_evaluation_pipeline so that ONE bad script (bad scan, malformed
+    model JSON, provider timeout) can't take down an entire batch request.
+    Failures degrade to a flagged entry for manual review instead of a 500
+    that aborts every other script in the batch.
+    """
+    try:
+        return await run_evaluation_pipeline(file_bytes, mime_type, rubric_context, provider=provider)
+    except Exception as e:
+        return {
+            "student_id": fallback_id,
+            "evaluation_failed": True,
+            "error": str(e),
+            "ras_score": None,
+            "derivation_text_summary": None,
+            "error_pattern": [],
+            "reasoning_map": [],
+        }
+
 
 @app.get("/health")
 def health():
@@ -159,6 +226,7 @@ def health():
             "reka": reka_client is not None
         }
     }
+
 
 @app.post("/api/decompose-rubric")
 async def decompose_rubric(
@@ -176,7 +244,7 @@ async def decompose_rubric(
     else:
         contents_payload.append(f"Deconstruct this marking scheme into atomic steps:\n\n{rubric_text}")
 
-    try:
+    def _call_decompose():
         response = client.models.generate_content(
             model="gemini-3.6-flash",
             contents=contents_payload,
@@ -186,8 +254,12 @@ async def decompose_rubric(
             )
         )
         return json.loads(response.text)
+
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(_call_decompose), timeout=PROVIDER_TIMEOUT_SECONDS)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Decomposition failed: {str(e)}")
+
 
 @app.post("/api/evaluate")
 async def evaluate_script(
@@ -202,6 +274,7 @@ async def evaluate_script(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Evaluation failed: {str(e)}")
 
+
 @app.post("/api/batch-evaluate")
 async def batch_evaluate(
     files: Annotated[list[UploadFile], File(description="Upload multiple student answer scripts")],
@@ -209,36 +282,61 @@ async def batch_evaluate(
     provider: Optional[str] = Query("gemini", description="Inference engine provider: 'gemini' or 'reka'")
 ):
     rubric_context = decomposed_rubric_json or "Default: 1. Approach and Formula, 2. Derivation Step, 3. Final Answer."
-    evaluations = []
 
-    for file in files:
-        contents = await file.read()
-        eval_result = await run_evaluation_pipeline(contents, file.content_type or "image/png", rubric_context, provider=provider)
-        evaluations.append(eval_result)
+    # Read all uploads up front (UploadFile streams can't be read concurrently
+    # from multiple tasks), then fan the actual evaluations out concurrently.
+    file_payloads = [(await f.read(), f.content_type or "image/png") for f in files]
 
-    embeddings = []
-    for ev in evaluations:
-        text_summary = ev.get("derivation_text_summary") or str(ev.get("reasoning_map"))
+    evaluations = await asyncio.gather(*[
+        safe_evaluate(contents, mime, rubric_context, provider, fallback_id=f"Student_{i+1}")
+        for i, (contents, mime) in enumerate(file_payloads)
+    ])
+
+    # Only embed scripts that actually evaluated successfully — a failed
+    # entry has no derivation_text_summary worth comparing, and shouldn't
+    # be silently treated as similarity 0 against everyone else.
+    embeddable_indices = [i for i, ev in enumerate(evaluations) if not ev.get("evaluation_failed")]
+
+    def _embed(text_summary: str):
         embed_resp = client.models.embed_content(
             model="text-embedding-004",
             contents=text_summary
         )
-        embeddings.append(embed_resp.embedding.values)
+        return embed_resp.embedding.values
 
-    embeddings_matrix = np.array(embeddings)
-    cos_sim_matrix = cosine_similarity(embeddings_matrix)
+    embeddings = {}
+    if embeddable_indices:
+        embed_results = await asyncio.gather(*[
+            asyncio.to_thread(
+                _embed,
+                evaluations[i].get("derivation_text_summary") or str(evaluations[i].get("reasoning_map"))
+            )
+            for i in embeddable_indices
+        ])
+        embeddings = dict(zip(embeddable_indices, embed_results))
+
+    cos_sim_matrix = None
+    if len(embeddable_indices) >= 2:
+        embeddings_matrix = np.array([embeddings[i] for i in embeddable_indices])
+        cos_sim_matrix = cosine_similarity(embeddings_matrix)
 
     collusion_flags = []
-    n = len(evaluations)
-    for i in range(n):
-        for j in range(i + 1, n):
-            sim = float(cos_sim_matrix[i][j])
-            
+    for a, i in enumerate(embeddable_indices):
+        for b, j in enumerate(embeddable_indices):
+            if b <= a:
+                continue
+
+            sim = float(cos_sim_matrix[a][b])
+
             err_i = set(evaluations[i].get("error_pattern", []))
             err_j = set(evaluations[j].get("error_pattern", []))
-            
+
             if not err_i and not err_j:
-                err_match = 1.0
+                # Both scripts are fully correct — there's no shared *mistake*
+                # for the malpractice radar to catch here, so don't let high
+                # embedding similarity between two clean, independently-correct
+                # answers alone trigger a collusion flag.
+                err_match = 0.0
             elif not err_i or not err_j:
                 err_match = 0.2
             else:
@@ -261,7 +359,9 @@ async def batch_evaluate(
             })
 
     return {
-        "cohort_size": n,
+        "cohort_size": len(evaluations),
+        "evaluated_count": len(embeddable_indices),
+        "failed_count": len(evaluations) - len(embeddable_indices),
         "evaluations": evaluations,
         "malpractice_radar": collusion_flags
     }
