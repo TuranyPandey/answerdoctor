@@ -1,23 +1,115 @@
-# AnswerDoctor
+# AnswerDoctor 🩺
 
-Reasoning-level diagnosis and batch grading for handwritten answer scripts, with cohort collusion detection built in.
+> **Reasoning-level diagnosis and batch grading for handwritten answer scripts, with collusion detection built in.**
 
-## Track & Architecture
-- **Track**: AI/ML & Open Innovation (DevJams 2026)
-- **Domain**: LMS Infrastructure & Script Diagnostics
-- **Core Engine**: Gemini 3.6 Flash Multimodal Pipeline, LangGraph agents, FastAPI
-- **Key Metrics**: 
-  - **RAS (Rubric-Alignment Score)**: Deterministic evaluation across decomposed atomic units.
-  - **CMI (Cohort Malpractice Index)**: Pairwise cosine similarity and error pattern tracking ($CMI \ge 0.88$ flag).
+---
 
-## Monorepo Layout
-- `/backend`: FastAPI microservice handling rubric decomposition, multimodal handwriting OCR, step alignment, and collusion analysis.
-- `/frontend`: Next.js diagnostic dashboard with role-based views for teachers and students.
+## 📌 Executive Summary
 
-## Quickstart (Backend)
+When students get exam scripts back, they usually see a numeric mark and a line struck through in red pen — almost never the **reason** why their reasoning broke. 
+**AnswerDoctor** is a role-based LMS infrastructure platform sitting on top of a multi-agent AI pipeline. It replaces blind markdowns with step-by-step **Reasoning Maps**, class-wide misconception heatmaps, step-level retry practice drills, and built-in malpractice collusion detection.
+
+- **One-Line Pitch:** *AnswerDoctor doesn't just mark whether an answer is right — it shows a student where their reasoning broke, gives them a way to fix it, and shows the teacher where the whole class is making the same mistake.*
+
+---
+
+## 👥 Team & Submission Info
+
+- **Team Name:** `trpSurgewave`
+- **Track / Domain:** AI/ML & Open Innovation — LMS infrastructure & script diagnostics
+- **Submission Stage:** Review 0 screening submission
+- **Team Members:**
+  - **Mangalapalli Sohum Seshu Krish** (`26BCE0616`, Team Lead)
+  - **Rayed Rabbanee** (`26BCE0606`)
+  - **Pratyush Jha** (`26BCE0604`)
+  - **Turany Pandey** (`26BCE0646`)
+
+---
+
+## 🚀 Key Features
+
+### 1. The Reasoning Map
+Every answer is represented as a structured map:
+$$\text{Concept} \longrightarrow \text{Approach} \longrightarrow \text{Steps} \longrightarrow \text{Transformation} \longrightarrow \text{Result}$$
+- **For Students:** Pinpoints the exact line where reasoning broke (e.g. *"Reasoning break at Step 1: You applied the first law formula before establishing the required reference state (T_0, P_0)"*).
+- **For Teachers:** Cohort-wide view of how the class approached each question and which misconceptions recur.
+
+### 2. Rubric Decomposer Agent (LangGraph)
+Deconstructs marking schemes into atomic gradeable units:
+- Categories: `Concept`, `Formula`, `Intermediate Step`, `Units`, `Final Answer`
+- Weights sum strictly to `1.0` (100%).
+- Individual similarity thresholds ($\gamma \ge 0.60$).
+
+### 3. Scoring Engine: RAS & CMI
+
+#### Rubric-Alignment Score (RAS)
+$$\text{RAS} = \frac{\sum (\text{Matched\_Units} \times \text{Unit\_Weight})}{\sum (\text{Total\_Units} \times \text{Unit\_Weight})} \times 100$$
+Any unit scoring below $\gamma = 0.60$ is flagged as *"Missing / Weak"* rather than silently penalized.
+
+#### Cohort Malpractice Index (CMI)
+$$\text{CMI}_{ij} = \text{CosSim}(\text{Emb}_i, \text{Emb}_j) \times \text{ErrorPatternMatch}(S_i, S_j)$$
+A pairwise CMI score $\ge 0.88$ flags suspicious collusion pairs (e.g. Sohum `26BCE0616` & Rayed `26BCE0606` with $\text{CMI} = 0.92$ on shared reference state omission).
+
+### 4. Interactive Step-Level Retry Drill
+When a student identifies a reasoning break, they can launch an interactive follow-up practice drill targeting the exact failed concept. Correctly answering the drill awards credit directly back to their RAS score!
+
+### 5. Vision Agent & Preserved Diagram Crops
+Spatial OCR alignment separates text derivations from handwritten circuit sketches, free-body diagrams, and P-V process curves — preserving diagrams as visual image crops alongside step diagnostics so diagrams are never mis-scored as missing text.
+
+### 6. Scikit-Learn Cohort Misconception Clusters
+Clusters recurring misconception types across semester scripts (e.g., *33.3% of class omitted reference state baselines*).
+
+---
+
+## 🛠️ Architecture & Tech Stack
+
+| Layer | Technologies | Description |
+| :--- | :--- | :--- |
+| **Agent Swarm** | LangGraph, Sentence-Transformers, Scikit-learn | Rubric decomposition, deterministic semantic alignment ($\gamma \ge 0.60$), CMI malpractice auditing |
+| **Backend API** | FastAPI, SQLite (SQLAlchemy), Pydantic | Role-based REST endpoints, batch script processing, SQLite foreign key pragmas |
+| **Frontend Web App** | React 19, Vite, Tailwind CSS, Lucide Icons | Dark glassmorphic cockpit, interactive Reasoning Map canvas, CMI matrix visualizer |
+| **Vision & OCR** | OpenCV, Spatial Bounding Box Alignment | Digitizes handwritten scripts, preserves diagram image crops |
+
+---
+
+## 💻 Quick Start & Running Locally
+
+### 1. Prerequisites
+- Python 3.10+
+- Node.js 18+
+
+### 2. Backend Setup
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: .\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+python -m pip install -r requirements.txt
+
+# Run FastAPI server
+python -m uvicorn main:app --host 127.0.0.1 --port 8008
+```
+
+### 3. Frontend Setup
+```bash
+cd frontend
+npm install
+
+# Launch Vite dev server
+npx vite --port 3000
+```
+
+### 4. Open Application
+Navigate to `http://localhost:3000/` in your browser.
+Click **"Load Thermo CAT Demo"** in the top navigation bar to instantly pre-populate the 240-script Thermodynamics CAT-1 cohort demo!
+
+---
+
+## 🧪 Testing
+
+Run the automated end-to-end test suite:
+```bash
+python scratch/test_pipeline.py
+```
+
+---
+
+## 📄 License
+MIT License. Built for VIT Review 0 Screening Submission by Team `trpSurgewave`.

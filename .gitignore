@@ -1,9 +1,27 @@
-**/.env
-*.env
-.env
-backend/venv/
-backend/__pycache__/
-*.pyc
+# Node / Frontend
+node_modules/
 frontend/node_modules/
-frontend/.next/
-frontend/out/
+frontend/dist/
+frontend/.vite/
+
+# Python / Backend
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+backend/__pycache__/
+backend/services/__pycache__/
+backend/routers/__pycache__/
+
+# Database & SQLite
+backend/*.db
+*.db
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
