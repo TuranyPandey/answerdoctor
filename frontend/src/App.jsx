@@ -1,26 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import RoleSelector from './components/RoleSelector';
 import AuthForm from './components/SimpleLogin';
 import CleanTeacherDashboard from './components/CleanTeacherDashboard';
 import CleanStudentDashboard from './components/CleanStudentDashboard';
 
 export default function App() {
-  const [theme, setTheme] = useState(() => {
-    const savedTheme = window.localStorage.getItem('answerdoctor-theme');
-    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
   const [user, setUser] = useState(null);
   const [authStep, setAuthStep] = useState('role'); // 'role', 'auth', 'dashboard'
   const [roleData, setRoleData] = useState(null);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem('answerdoctor-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme((current) => current === 'dark' ? 'light' : 'dark');
 
   const handleRoleSelect = (data) => {
     setRoleData(data);
@@ -44,7 +31,7 @@ export default function App() {
   };
 
   if (authStep === 'role') {
-    return <RoleSelector onSelectRole={handleRoleSelect} theme={theme} onToggleTheme={toggleTheme} />;
+    return <RoleSelector onSelectRole={handleRoleSelect} onDirectLogin={handleLogin} />;
   }
 
   if (authStep === 'auth') {
@@ -54,8 +41,6 @@ export default function App() {
         authType={roleData?.authType}
         onLogin={handleLogin}
         onBack={handleBackToRole}
-        theme={theme}
-        onToggleTheme={toggleTheme}
       />
     );
   }
@@ -64,9 +49,9 @@ export default function App() {
     return (
       <>
         {user.role === 'teacher' ? (
-          <CleanTeacherDashboard user={user} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} />
+          <CleanTeacherDashboard user={user} onLogout={handleLogout} />
         ) : (
-          <CleanStudentDashboard user={user} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} />
+          <CleanStudentDashboard user={user} onLogout={handleLogout} />
         )}
       </>
     );
