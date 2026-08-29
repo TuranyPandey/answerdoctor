@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import RubricUnit, SubmissionStep, Submission, Assignment
 from services.seed_data import seed_thermodynamics_demo
+import os
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
@@ -72,5 +73,7 @@ def trigger_seed_demo():
     """
     One-click reset and seeding of the Mechanical Engineering Thermodynamics CAT Demo data.
     """
+    if os.getenv("ALLOW_DEMO_RESET", "false").lower() != "true":
+        raise HTTPException(status_code=404, detail="Demo reset is disabled")
     seed_thermodynamics_demo()
     return {"message": "Optional synthetic Thermodynamics sample data loaded."}
