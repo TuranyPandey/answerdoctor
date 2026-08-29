@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   LogOut, FileText, TrendingUp, AlertCircle, CheckCircle, Clock, 
-  HelpCircle, BookOpen, Layers, Sparkles, Send, Award, Target, Check, X, ShieldCheck, Play
+  HelpCircle, BookOpen, Layers, Sparkles, Send, Award, Target, Check, X
 } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8008/api';
 
 const FALLBACK_SUBMISSION = {
   submission_id: 1,
@@ -83,132 +86,101 @@ const PYQ_LIST = [
   }
 ];
 
-export default function StudentDashboard({ user, onLogout }) {
-  const [activeTab, setActiveTab] = useState('evaluations'); // 'evaluations', 'self_evaluator', 'reasoning_map', 'doubts', 'pyq'
+export default function StudentDashboard({ user, onLogout, theme, onToggleTheme }) {
+  const [activeTab, setActiveTab] = useState('evaluations'); // 'evaluations', 'reasoning_map', 'doubts', 'pyq'
   const [submission, setSubmission] = useState(FALLBACK_SUBMISSION);
   const [retryModalStep, setRetryModalStep] = useState(null);
   const [selectedOption, setSelectedOption] = useState('');
   const [retryFeedback, setRetryFeedback] = useState(null);
+  const [dataSource, setDataSource] = useState('Loading backend data…');
+  const [retryBusy, setRetryBusy] = useState(false);
 
-  // AI Doubt Assistant State
+  // Doubt Center State
   const [doubtMessages, setDoubtMessages] = useState([
-    { id: 1, sender: 'ai', text: "👋 Hi! I am your AnswerDoctor AI Tutor. Ask me any question about your exam feedback, why Step 1 failed, or hints for homework derivations!" }
+    { id: 1, sender: 'ai', text: "Hello! Ask any question about why Step 1 failed or how to fix missing reference states." }
   ]);
   const [doubtInput, setDoubtInput] = useState('');
   const [expandedPyqId, setExpandedPyqId] = useState(null);
 
-  // Student Self-Evaluator Studio State (Homework & Self-Practice)
-  const [hwTitle, setHwTitle] = useState('Applied Thermodynamics Homework 3');
-  const [hwStep1, setHwStep1] = useState('State reference conditions T_0 = 298.15 K and P_0 = 1 atm.');
-  const [hwStep2, setHwStep2] = useState('Energy balance Q - W = delta U = m * c_v * (T2 - T1).');
-  const [hwStep3, setHwStep3] = useState('Calculated boundary work W = 145.2 kJ and Q_net = 384.6 kJ.');
-  const [hwResult, setHwResult] = useState(null);
+  useEffect(() => {
+    const loadSubmission = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/submissions/student/${user.id}/assignment/1`);
+        if (!response.ok) throw new Error('Submission unavailable');
+        setSubmission(await response.json());
+        setDataSource('Database-backed seeded submission');
+      } catch (error) {
+        setSubmission(FALLBACK_SUBMISSION);
+        setDataSource('Local preview dataset — backend offline');
+      }
+    };
+    loadSubmission();
+  }, [user.id]);
 
-  const handleRetrySubmit = (step) => {
+  const handleRetrySubmit = async (step) => {
     if (!selectedOption) return;
-    const isCorrect = (selectedOption === 'A');
-    if (isCorrect) {
-      setSubmission(prev => ({
-        ...prev,
-        total_ras_score: Math.min(100.0, prev.total_ras_score + 10.0),
-        steps: prev.steps.map(s => s.id === step.id ? { ...s, status: 'MATCHED' } : s),
-        reasoning_map: prev.reasoning_map.map(r => r.step_number === step.step_number ? { ...r, status: 'MATCHED', has_reasoning_break: false, similarity_pct: 85.0 } : r)
-      }));
-      setRetryFeedback({ isCorrect: true, text: step.retry_question.explanation });
-    } else {
-      setRetryFeedback({ isCorrect: false, text: "Incorrect. Make sure to establish standard reference state (T_0 = 298.15 K, P_0 = 1 atm)." });
+    setRetryBusy(true);
+    setRetryFeedback(null);
+    try {
+      const response = await fetch(`${API_BASE}/submissions/retry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step_id: step.id, selected_option: selectedOption })
+      });
+      if (!response.ok) throw new Error('Retry unavailable');
+      const result = await response.json();
+      const refreshed = await fetch(`${API_BASE}/submissions/${submission.submission_id}`);
+      if (!refreshed.ok) throw new Error('Could not refresh submission');
+      setSubmission(await refreshed.json());
+      setRetryFeedback({ isCorrect: result.is_correct, text: `${result.explanation} Updated RAS: ${result.new_total_ras}%.` });
+    } catch (error) {
+      setRetryFeedback({ isCorrect: false, text: 'The backend is offline, so this retry was not saved. Start FastAPI on port 8008.' });
+    } finally {
+      setRetryBusy(false);
     }
   };
 
   const handleSendDoubt = (qText) => {
-    if (!qText || !qText.trim()) return;
-    const userMsg = qText.trim();
-    setDoubtMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: userMsg }]);
+    if (!qText.trim()) return;
+    setDoubtMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: qText }]);
     setDoubtInput('');
 
     let aiResp = "";
-    const qLower = userMsg.toLowerCase();
-    
-    if (qLower.includes("step 1") || qLower.includes("reference state") || qLower.includes("fail")) {
-      aiResp = "💡 Step 1 failed because internal energy (u) and enthalpy (h) are state functions calculated relative to a reference state (T_0 = 298.15 K, P_0 = 1 atm). Omitting T_0 leaves the energy balance floating without zero-point baseline initialization.";
-    } else if (qLower.includes("bar") || qLower.includes("kpa") || qLower.includes("unit")) {
-      aiResp = "💡 Unit Conversion Hint: 1 bar = 100 kPa = 10^5 N/m^2. When substituting pressure into boundary work integral W = ∫P dV in SI units (kJ), always multiply bar values by 100 to get kPa!";
-    } else if (qLower.includes("polytropic") || qLower.includes("work")) {
-      aiResp = "💡 Polytropic Boundary Work Formula: W_12 = (P_1*V_1 - P_2*V_2) / (n - 1). Make sure n ≠ 1. For ideal gas, this simplifies to m*R*(T_1 - T_2) / (n - 1).";
-    } else if (qLower.includes("homework") || qLower.includes("evaluative")) {
-      aiResp = "💡 You can test your homework derivation live! Switch to the 'Self-Evaluator Studio' tab above, paste your steps, and get instant RAS feedback before submitting to your teacher.";
+    const qLower = qText.toLowerCase();
+    if (qLower.includes("reference state") || qLower.includes("step 1")) {
+      aiResp = "Step 1 failed because internal energy (u) and enthalpy (h) are state functions calculated relative to a reference state (T_0 = 298.15 K, P_0 = 1 atm). Omitting T_0 leaves the energy balance floating without zero-point baseline initialization.";
     } else {
-      aiResp = `💡 Response to "${userMsg}": To get full marks on derivation questions, break your answer into 5 atomic units: 1) Reference State, 2) First Law Equation, 3) Work Integral, 4) Unit Conversions, 5) Final Answer with Units.`;
+      aiResp = `Regarding "${qText}": Break your derivation into 5 atomic units: 1) Reference State, 2) Conservation Equation, 3) Integration, 4) Units, 5) Final Answer.`;
     }
 
     setTimeout(() => {
       setDoubtMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: aiResp }]);
-    }, 300);
-  };
-
-  const handleRunSelfEvaluation = (e) => {
-    e.preventDefault();
-    
-    // Dynamic text similarity calculation based on student input keywords
-    const step1Lower = (hwStep1 || '').toLowerCase();
-    const step2Lower = (hwStep2 || '').toLowerCase();
-    const step3Lower = (hwStep3 || '').toLowerCase();
-
-    // Step 1 Match: Checks for T_0, 298, reference, or boundary
-    let match1 = 0.40;
-    if (step1Lower.includes('t_0') || step1Lower.includes('298') || step1Lower.includes('reference') || step1Lower.includes('boundary')) {
-      match1 = 0.94;
-    }
-
-    // Step 2 Match: Checks for Q - W, delta U, or c_v
-    let match2 = 0.45;
-    if (step2Lower.includes('q - w') || step2Lower.includes('delta u') || step2Lower.includes('c_v') || step2Lower.includes('energy')) {
-      match2 = 0.91;
-    }
-
-    // Step 3 Match: Checks for W = P, 145, 384, or kJ
-    let match3 = 0.50;
-    if (step3Lower.includes('w') || step3Lower.includes('kj') || step3Lower.includes('145') || step3Lower.includes('384')) {
-      match3 = 0.89;
-    }
-
-    // Dynamic RAS Score Computation
-    const computedRas = Math.round(((match1 * 0.33) + (match2 * 0.33) + (match3 * 0.34)) * 100.0);
-
-    setHwResult({
-      assignment: hwTitle || "Applied Thermodynamics Homework",
-      ras_score: computedRas,
-      status: computedRas >= 70 ? "READY_FOR_SUBMISSION" : "NEEDS_REVISION",
-      steps_matched: [
-        { step: 1, text: hwStep1, match: match1, status: match1 >= 0.60 ? "MATCHED" : "WEAK", label: "1. Reference State Definition" },
-        { step: 2, text: hwStep2, match: match2, status: match2 >= 0.60 ? "MATCHED" : "WEAK", label: "2. Energy Balance Equation" },
-        { step: 3, text: hwStep3, match: match3, status: match3 >= 0.60 ? "MATCHED" : "WEAK", label: "3. Boundary Work & Heat Calculation" }
-      ]
-    });
+    }, 350);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+    <div className="readable-dashboard min-h-screen bg-gray-50 text-gray-900 font-sans">
       
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
               <h1 className="text-2xl font-bold text-gray-900">Hi, {user.full_name || "Student Evaluator"}!</h1>
-              <span className="flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
-                <ShieldCheck className="w-3 h-3 text-emerald-600" /> Google Verified
-              </span>
+              <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">{dataSource}</span>
             </div>
-            <p className="text-xs text-gray-600 mt-0.5">Student Portal • {user.email || "student@vitstudent.ac.in"} • Reg: {user.register_number || "26BCE0616"}</p>
+            <p className="text-xs text-gray-600 mt-0.5">Student workspace • {user.email || "student@vitstudent.ac.in"} • ID: {user.register_number || "26BCE0616"}</p>
           </div>
 
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-          >
-            <LogOut size={16} /> Sign Out
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} compact />
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition whitespace-nowrap"
+            >
+              <LogOut size={16} /> Sign Out
+            </button>
+          </div>
         </div>
 
         {/* Navigation Tabs */}
@@ -222,19 +194,7 @@ export default function StudentDashboard({ user, onLogout }) {
             }`}
           >
             <FileText className="w-4 h-4" />
-            <span>My Exam Submissions</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('self_evaluator')}
-            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition whitespace-nowrap ${
-              activeTab === 'self_evaluator'
-                ? 'border-blue-600 text-blue-600 font-bold'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-purple-600" />
-            <span>Self-Evaluator Studio (Homework)</span>
+            <span>My Results</span>
           </button>
 
           <button
@@ -245,8 +205,8 @@ export default function StudentDashboard({ user, onLogout }) {
                 : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
-            <Layers className="w-4 h-4 text-emerald-600" />
-            <span>Reasoning Map & Retries</span>
+            <Layers className="w-4 h-4 text-purple-600" />
+            <span>Fix My Mistakes</span>
           </button>
 
           <button
@@ -257,8 +217,8 @@ export default function StudentDashboard({ user, onLogout }) {
                 : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
-            <HelpCircle className="w-4 h-4 text-indigo-600" />
-            <span>AI Doubt Center</span>
+            <HelpCircle className="w-4 h-4 text-emerald-600" />
+            <span>Ask Why</span>
           </button>
 
           <button
@@ -270,13 +230,13 @@ export default function StudentDashboard({ user, onLogout }) {
             }`}
           >
             <BookOpen className="w-4 h-4 text-amber-600" />
-            <span>PYQ Repository Vault</span>
+            <span>Practice Papers</span>
           </button>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main key={activeTab} className="dashboard-view-transition max-w-7xl mx-auto px-6 py-8">
         
         {/* TAB 1: MY SUBMISSIONS & CHARTS */}
         {activeTab === 'evaluations' && (
@@ -284,10 +244,10 @@ export default function StudentDashboard({ user, onLogout }) {
             
             {/* Quick Stats Cards */}
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Your Performance</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Your Latest Result</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                  <p className="text-sm text-gray-600">Submissions</p>
+                  <p className="text-sm text-gray-600">Answers Checked</p>
                   <p className="text-3xl font-bold text-blue-600 mt-2">1</p>
                 </div>
                 
@@ -297,12 +257,12 @@ export default function StudentDashboard({ user, onLogout }) {
                 </div>
                 
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                  <p className="text-sm text-gray-600">Class Average</p>
+                  <p className="text-sm text-gray-600">Your Latest Score</p>
                   <p className="text-3xl font-bold text-purple-600 mt-2">{submission.total_ras_score.toFixed(1)}%</p>
                 </div>
                 
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                  <p className="text-sm text-gray-600">Flagged</p>
+                  <p className="text-sm text-gray-600">Teacher Reviews</p>
                   <p className="text-3xl font-bold text-red-600 mt-2">1</p>
                 </div>
               </div>
@@ -314,10 +274,10 @@ export default function StudentDashboard({ user, onLogout }) {
               {/* Visual Bar Chart: Step Similarity Scores */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-base">📊 Step-by-Step Similarity Alignment (%)</h3>
+                  <h3 className="font-bold text-gray-900 text-base">How Each Step Matched the Marking Guide</h3>
                   <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded">5 Steps Analyzed</span>
                 </div>
-                <p className="text-xs text-gray-500">Visual comparison of your derivation steps against the rubric expectation.</p>
+                <p className="text-xs text-gray-500">A step-by-step comparison with what the teacher expected.</p>
                 
                 <div className="space-y-3 pt-2">
                   {STEP_BAR_ITEMS.map((item, idx) => (
@@ -340,10 +300,10 @@ export default function StudentDashboard({ user, onLogout }) {
               {/* Visual Donut / Pie Chart: Step Competency Breakdown */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-base">🥧 Step Competency Breakdown</h3>
+                  <h3 className="font-bold text-gray-900 text-base">Steps Meeting the Marking Guide</h3>
                   <span className="text-xs font-mono font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded">80% Pass Rate</span>
                 </div>
-                <p className="text-xs text-gray-500">Proportion of Matched Steps vs Weak Conceptual Steps.</p>
+                <p className="text-xs text-gray-500">How many answer steps are complete and how many need another attempt.</p>
                 
                 <div className="flex items-center justify-around py-4">
                   {/* SVG Donut Chart */}
@@ -368,18 +328,18 @@ export default function StudentDashboard({ user, onLogout }) {
                     </svg>
                     <div className="absolute flex flex-col items-center">
                       <span className="text-xl font-bold text-gray-900">4/5</span>
-                      <span className="text-[10px] text-gray-500 font-bold uppercase">Matched</span>
+                      <span className="text-xs text-gray-500 font-bold uppercase">Complete</span>
                     </div>
                   </div>
 
                   <div className="space-y-3 text-xs font-bold">
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded bg-green-500"></div>
-                      <span className="text-gray-800">Matched Steps: 4 (80%)</span>
+                      <span className="text-gray-800">Complete Steps: 4 (80%)</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded bg-red-500"></div>
-                      <span className="text-gray-800">Weak Steps: 1 (20%)</span>
+                      <span className="text-gray-800">Steps to Fix: 1 (20%)</span>
                     </div>
                   </div>
                 </div>
@@ -393,7 +353,7 @@ export default function StudentDashboard({ user, onLogout }) {
               {/* Left: Submissions Selector */}
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-blue-600" /> My Submissions
+                  <FileText className="w-5 h-5 text-blue-600" /> My Checked Answers
                 </h2>
                 <div className="space-y-3">
                   <div className="p-4 rounded-lg border-2 border-blue-600 bg-blue-50 shadow-sm text-left">
@@ -414,7 +374,7 @@ export default function StudentDashboard({ user, onLogout }) {
               {/* Right: Submission Analysis */}
               <div className="lg:col-span-2 space-y-6">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-blue-600" /> Submission Analysis
+                  <TrendingUp className="w-5 h-5 text-blue-600" /> Detailed Result
                 </h2>
 
                 <div className="bg-white rounded-lg border border-gray-200 shadow-sm space-y-6">
@@ -422,7 +382,7 @@ export default function StudentDashboard({ user, onLogout }) {
                   {/* Score Card */}
                   <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg flex items-center justify-between">
                     <div>
-                      <p className="text-gray-600 text-sm">Overall Score (RAS)</p>
+                      <p className="text-gray-600 text-sm">Overall Reasoning Score</p>
                       <p className="text-4xl font-bold text-gray-900 mt-1">{submission.total_ras_score.toFixed(1)}%</p>
                       <p className="text-sm font-medium text-green-600 mt-2">✓ Passed</p>
                     </div>
@@ -435,7 +395,7 @@ export default function StudentDashboard({ user, onLogout }) {
                   {/* Details */}
                   <div className="px-6 grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <p className="text-xs text-gray-600">OCR Confidence</p>
+                      <p className="text-xs text-gray-600">Demo Text-Reading Confidence</p>
                       <p className="text-lg font-semibold text-gray-900 mt-1">{(submission.ocr_confidence * 100).toFixed(1)}%</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -449,9 +409,9 @@ export default function StudentDashboard({ user, onLogout }) {
                     <div className="mx-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-medium text-red-900">Flagged for Review</p>
+                        <p className="font-medium text-red-900">Teacher Similarity Review</p>
                         <p className="text-sm text-red-700 mt-1">
-                          This submission has been flagged for potential academic integrity concerns (CMI = 0.92).
+                          Parts of this answer resemble another submission. Your teacher will compare them; this is not an automatic misconduct decision.
                         </p>
                       </div>
                     </div>
@@ -459,22 +419,26 @@ export default function StudentDashboard({ user, onLogout }) {
 
                   {/* Steps */}
                   <div className="px-6 pb-6 space-y-4">
-                    <h3 className="font-semibold text-gray-900">Step-by-Step Feedback</h3>
+                    <h3 className="font-semibold text-gray-900">Where You Gained or Lost Marks</h3>
                     <div className="space-y-3">
                       {submission.steps.map(step => (
                         <div key={step.id} className="p-4 bg-white border border-gray-200 rounded-lg space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className="font-semibold text-sm text-gray-900">Step {step.step_number}: {step.status}</span>
+                            <span className="font-semibold text-sm text-gray-900">Step {step.step_number}: {step.status === 'MATCHED' ? 'Meets the guide' : 'Needs work'}</span>
                             <span className={`px-2 py-0.5 text-xs font-bold rounded ${
                               step.status === 'MATCHED' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                             }`}>
-                              {step.status}
+                              {step.status === 'MATCHED' ? 'Complete' : 'Needs work'}
                             </span>
                           </div>
                           <p className="text-sm text-gray-600">{step.student_text}</p>
                           <p className="text-xs text-gray-500">{step.diagnosis_text}</p>
 
-                          {step.status === 'WEAK' && (
+                          {step.retry_status === 'PASSED' && (
+                            <p className="text-xs font-bold text-green-700">Retry passed — recovery credit has been added to RAS.</p>
+                          )}
+
+                          {step.status === 'WEAK' && step.retry_status !== 'PASSED' && (
                             <button
                               onClick={() => {
                                 setRetryModalStep(step);
@@ -483,7 +447,7 @@ export default function StudentDashboard({ user, onLogout }) {
                               }}
                               className="mt-2 text-xs font-bold text-purple-600 hover:text-purple-800 underline flex items-center gap-1"
                             >
-                              <Sparkles className="w-3.5 h-3.5" /> Practice Step Retry Drill to recover marks
+                              <Sparkles className="w-3.5 h-3.5" /> Practise this step to recover marks
                             </button>
                           )}
                         </div>
@@ -498,141 +462,16 @@ export default function StudentDashboard({ user, onLogout }) {
           </div>
         )}
 
-        {/* TAB 2: STUDENT SELF-EVALUATOR STUDIO (HOMEWORK & PRACTICE) */}
-        {activeTab === 'self_evaluator' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            
-            {/* Input Homework Derivation Form */}
-            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-purple-600" /> Self-Evaluator Studio (Homework & Self-Practice)
-                </h3>
-                <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full">
-                  AI Pre-Submission Evaluator
-                </span>
-              </div>
-              <p className="text-xs text-gray-500">
-                Paste your homework derivation steps below to test your score and verify step alignment before submitting to your professor!
-              </p>
-
-              <form onSubmit={handleRunSelfEvaluation} className="space-y-3 text-xs">
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Homework Title / Problem</label>
-                  <input
-                    type="text"
-                    value={hwTitle}
-                    onChange={(e) => setHwTitle(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="e.g. Applied Thermodynamics Assignment 3"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Step 1: Reference State & Boundary</label>
-                  <textarea
-                    rows={2}
-                    value={hwStep1}
-                    onChange={(e) => setHwStep1(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-300 rounded-xl font-mono text-gray-900 focus:outline-none"
-                    placeholder="State T_0 = 298.15 K and P_0 = 1 atm..."
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Step 2: Conservation & Energy Equation</label>
-                  <textarea
-                    rows={2}
-                    value={hwStep2}
-                    onChange={(e) => setHwStep2(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-300 rounded-xl font-mono text-gray-900 focus:outline-none"
-                    placeholder="Q - W = delta U = m * c_v * (T2 - T1)..."
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Step 3: Integration & Final Calculation</label>
-                  <textarea
-                    rows={2}
-                    value={hwStep3}
-                    onChange={(e) => setHwStep3(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-300 rounded-xl font-mono text-gray-900 focus:outline-none"
-                    placeholder="W = P*(V2 - V1) = 145.2 kJ, Q_net = 384.6 kJ..."
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-md transition active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <Play className="w-4 h-4 fill-current" /> Run Instant AI Self-Evaluation & Compute RAS
-                </button>
-              </form>
-            </div>
-
-            {/* Live Results Panel */}
-            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4 flex flex-col justify-between">
-              <div>
-                <h3 className="font-bold text-gray-900 text-base mb-2">Self-Evaluation Report</h3>
-                {!hwResult ? (
-                  <div className="p-8 text-center bg-gray-50 border border-dashed border-gray-300 rounded-xl text-xs text-gray-500 space-y-2">
-                    <Sparkles className="w-8 h-8 text-purple-400 mx-auto" />
-                    <p className="font-bold text-gray-700">No Self-Evaluation Run Yet</p>
-                    <p>Fill out your homework derivation steps on the left and click "Run Instant AI Self-Evaluation" to test your score!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4 text-xs">
-                    <div className="p-4 bg-gradient-to-r from-purple-50 to-emerald-50 border border-purple-200 rounded-xl flex items-center justify-between">
-                      <div>
-                        <p className="text-gray-600 font-semibold">{hwResult.assignment}</p>
-                        <p className="text-3xl font-extrabold text-purple-700 mt-1">{hwResult.ras_score}%</p>
-                        <span className="inline-block mt-1 px-2.5 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full text-[10px]">
-                          ✓ Ready for Homework Submission!
-                        </span>
-                      </div>
-                      <div className="w-16 h-16 rounded-full border-4 border-purple-600 flex items-center justify-center bg-white font-bold text-purple-700 text-lg">
-                        A+
-                      </div>
-                    </div>
-
-                    <h4 className="font-bold text-gray-800">Evaluated Steps:</h4>
-                    <div className="space-y-2.5">
-                      {hwResult.steps_matched.map((s, idx) => (
-                        <div key={idx} className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-1">
-                          <div className="flex justify-between font-bold text-gray-900">
-                            <span>{s.label}</span>
-                            <span className="text-emerald-600">{(s.match * 100).toFixed(0)}% Match</span>
-                          </div>
-                          <p className="font-mono text-[11px] text-gray-600">{s.text}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-3 bg-purple-50 border border-purple-100 rounded-xl text-[11px] text-purple-900 font-mono">
-                💡 Pre-Submission Tip: Verifying standard reference parameters before turning in homework improves cohort RAS average by 22%!
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {/* TAB 3: REASONING MAP */}
+        {/* TAB 2: REASONING MAP */}
         {activeTab === 'reasoning_map' && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Flowchart Reasoning Map</h2>
-                <p className="text-xs text-gray-600 mt-1">Visualization highlighting broken steps vs matched reasoning logic.</p>
+                <h2 className="text-xl font-bold text-gray-900">How Your Answer Progressed</h2>
+                <p className="text-xs text-gray-600 mt-1">Follow your solution in order and see the first step that needs fixing.</p>
               </div>
               <span className="px-3 py-1 bg-purple-100 text-purple-700 font-bold text-xs rounded-full">
-                AI Diagnostics Engine
+                Checked against the marking guide
               </span>
             </div>
 
@@ -644,7 +483,7 @@ export default function StudentDashboard({ user, onLogout }) {
                   }`}>
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-bold text-gray-900 text-sm">{node.title}</h4>
-                      <span className="text-xs font-mono font-bold text-gray-600">{node.similarity_pct}% Similarity</span>
+                      <span className="text-xs font-mono font-bold text-gray-600">{node.similarity_pct}% match to guide</span>
                     </div>
 
                     <p className="text-xs font-mono text-gray-800 bg-white p-3 rounded border border-gray-200">
@@ -653,7 +492,7 @@ export default function StudentDashboard({ user, onLogout }) {
 
                     {node.has_reasoning_break && (
                       <div className="mt-3 flex items-center justify-between">
-                        <span className="text-xs font-bold text-red-700">⚠️ Reasoning Break Detected</span>
+                        <span className="text-xs font-bold text-red-700">First Step to Fix</span>
                         <button
                           onClick={() => {
                             const stepObj = submission.steps.find(s => s.step_number === node.step_number);
@@ -663,7 +502,7 @@ export default function StudentDashboard({ user, onLogout }) {
                           }}
                           className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-lg transition"
                         >
-                          Retry Step Practice
+                          Practise This Step
                         </button>
                       </div>
                     )}
@@ -680,27 +519,20 @@ export default function StudentDashboard({ user, onLogout }) {
           </div>
         )}
 
-        {/* TAB 4: AI DOUBT CENTER (FIXED & FULLY INTERACTIVE) */}
+        {/* TAB 3: AI DOUBT CENTER */}
         {activeTab === 'doubts' && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col h-[560px]">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[520px]">
             <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-indigo-600" />
-                <h3 className="font-bold text-gray-900 text-base">AI Doubt Assistant</h3>
-              </div>
-              <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full">
-                Active AI Tutor
-              </span>
+              <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-emerald-600" /> Ask Why This Step Lost Marks
+              </h3>
             </div>
 
-            {/* Chat Messages */}
             <div className="flex-1 p-6 overflow-y-auto space-y-4">
               {doubtMessages.map(m => (
                 <div key={m.id} className={`flex gap-3 text-xs ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`p-4 rounded-xl max-w-xl leading-relaxed shadow-xs ${
-                    m.sender === 'user'
-                      ? 'bg-blue-600 text-white font-medium'
-                      : 'bg-gray-100 text-gray-900 font-sans border border-gray-200'
+                  <div className={`p-4 rounded-lg max-w-xl leading-relaxed ${
+                    m.sender === 'user' ? 'bg-blue-600 text-white font-medium' : 'bg-gray-100 text-gray-900 font-mono border border-gray-200'
                   }`}>
                     {m.text}
                   </div>
@@ -708,59 +540,29 @@ export default function StudentDashboard({ user, onLogout }) {
               ))}
             </div>
 
-            {/* Prompt Chips Bar */}
-            <div className="px-6 py-2 bg-gray-50 border-t border-gray-200 flex items-center gap-2 overflow-x-auto text-[11px]">
-              <span className="font-bold text-gray-500 shrink-0">Quick Doubts:</span>
-              <button
-                onClick={() => handleSendDoubt("Why did Step 1 fail?")}
-                className="px-2.5 py-1 bg-white hover:bg-blue-50 border border-gray-300 rounded-full font-medium text-gray-700 shrink-0 transition"
-              >
-                💡 Why did Step 1 fail?
-              </button>
-              <button
-                onClick={() => handleSendDoubt("How to convert bar to kPa?")}
-                className="px-2.5 py-1 bg-white hover:bg-blue-50 border border-gray-300 rounded-full font-medium text-gray-700 shrink-0 transition"
-              >
-                💡 How to convert bar to kPa?
-              </button>
-              <button
-                onClick={() => handleSendDoubt("Polytropic work formula?")}
-                className="px-2.5 py-1 bg-white hover:bg-blue-50 border border-gray-300 rounded-full font-medium text-gray-700 shrink-0 transition"
-              >
-                💡 Polytropic work formula?
-              </button>
-              <button
-                onClick={() => handleSendDoubt("Give me a hint for homework")}
-                className="px-2.5 py-1 bg-white hover:bg-blue-50 border border-gray-300 rounded-full font-medium text-gray-700 shrink-0 transition"
-              >
-                💡 Homework hint
-              </button>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={(e) => { e.preventDefault(); handleSendDoubt(doubtInput); }} className="p-4 border-t border-gray-200 bg-white flex gap-3">
+            <form onSubmit={(e) => { e.preventDefault(); handleSendDoubt(doubtInput); }} className="p-4 border-t border-gray-200 bg-gray-50 flex gap-3">
               <input
                 type="text"
                 value={doubtInput}
                 onChange={(e) => setDoubtInput(e.target.value)}
-                placeholder="Ask any doubt about your derivation or homework..."
-                className="flex-1 bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Ask why this step needs work..."
+                className="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-1.5"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition"
               >
-                <Send className="w-3.5 h-3.5" /> Ask Assistant
+                Get Explanation
               </button>
             </form>
           </div>
         )}
 
-        {/* TAB 5: PYQ VAULT */}
+        {/* TAB 4: PYQ VAULT */}
         {activeTab === 'pyq' && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">PYQ Repository Vault</h2>
+              <h2 className="text-xl font-bold text-gray-900">Practice with Past Papers</h2>
             </div>
 
             <div className="space-y-4">
@@ -798,7 +600,7 @@ export default function StudentDashboard({ user, onLogout }) {
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-gray-200">
             <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-600" /> Step {retryModalStep.step_number} Practice Retry
+                <Sparkles className="w-5 h-5 text-purple-600" /> Practise Step {retryModalStep.step_number} Again
               </h3>
               <button onClick={() => setRetryModalStep(null)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
@@ -840,9 +642,10 @@ export default function StudentDashboard({ user, onLogout }) {
               </button>
               <button
                 onClick={() => handleRetrySubmit(retryModalStep)}
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-md"
+                disabled={retryBusy || !selectedOption}
+                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-md disabled:opacity-50"
               >
-                Submit Answer
+                {retryBusy ? 'Saving…' : 'Submit Answer'}
               </button>
             </div>
           </div>
