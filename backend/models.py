@@ -47,6 +47,7 @@ class Assignment(Base):
 
     rubric_units = relationship("RubricUnit", back_populates="assignment", cascade="all, delete-orphan")
     submissions = relationship("Submission", back_populates="assignment", cascade="all, delete-orphan")
+    classroom = relationship("Classroom")
 
 class RubricUnit(Base):
     __tablename__ = "rubric_units"

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from routers import auth, classrooms, assignments, submissions, malpractice, analytics, pyq, doubts
-from services.seed_data import seed_thermodynamics_demo
+import os
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -34,18 +34,10 @@ app.include_router(doubts.router)
 
 @app.on_event("startup")
 def startup_db_seed():
-    """Auto-seed demo data if empty on server start"""
-    try:
-        from database import SessionLocal
-        from models import User
-        db = SessionLocal()
-        user_count = db.query(User).count()
-        db.close()
-        if user_count == 0:
-            print("Database empty. Pre-seeding Thermodynamics CAT demo data...")
-            seed_thermodynamics_demo()
-    except Exception as e:
-        print("Startup seed check:", e)
+    """Seed sample data only when explicitly requested for a demo deployment."""
+    if os.getenv("ANSWERDOCTOR_SEED_DEMO", "false").lower() == "true":
+        from services.seed_data import seed_thermodynamics_demo
+        seed_thermodynamics_demo()
 
 @app.get("/")
 def root():
@@ -53,7 +45,8 @@ def root():
         "status": "active",
         "app": "AnswerDoctor Enterprise Engine",
         "version": "2.0.0",
-        "demo_preloaded": True,
+        "persistent_database": True,
+        "demo_preloaded": os.getenv("ANSWERDOCTOR_SEED_DEMO", "false").lower() == "true",
         "docs_url": "/docs"
     }
 

@@ -7,92 +7,15 @@ import ThemeToggle from './ThemeToggle';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8008/api';
 
-const FALLBACK_SUBMISSION = {
-  submission_id: 1,
-  assignment_id: 1,
-  assignment_title: "CAT-1 Exam: First Law & State Reference Equations",
-  student_name: "Mangalapalli Sohum Seshu Krish",
-  register_number: "26BCE0616",
-  total_ras_score: 60.0,
-  ocr_confidence: 0.96,
-  is_collusion_flagged: true,
-  submission_time: "2026-08-29T16:00:00Z",
-  steps: [
-    {
-      id: 1, step_number: 1, student_text: "Applied energy equation Q - W = m*c_v*(T2 - T1) directly without defining T_0 or P_0 reference state.", similarity_score: 0.41, status: "WEAK",
-      diagnosis_text: "Reasoning break at Step 1: Reference state T_0 = 298.15 K missing.",
-      retry_question: {
-        prompt: "Which reference state parameters must be defined before applying Q - W = delta U?",
-        options: [
-          "A) Standard Temperature (T_0 = 298.15 K) and Standard Pressure (P_0 = 1 atm)",
-          "B) Maximum pressure reached during compression phase only",
-          "C) Arbitrary initial pressure without temperature grounding",
-          "D) No reference state is needed for closed systems"
-        ],
-        explanation: "Correct! Energy balance evaluations require an established reference state (T_0 = 298.15 K, P_0 = 1 atm)."
-      },
-      rubric_unit: { id: 1, category: "concept", label: "1. Reference State", expected_text: "Establish reference state T_0 = 298.15 K, P_0 = 1 atm.", weight: 0.20 }
-    },
-    {
-      id: 2, step_number: 2, student_text: "Q - W = delta U where delta U = m * c_v * (T2 - T1)", similarity_score: 0.88, status: "MATCHED",
-      diagnosis_text: "Step 2 matched the rubric requirement for First Law Energy Balance.",
-      rubric_unit: { id: 2, category: "formula", label: "2. Energy Balance", expected_text: "Q - W = delta U.", weight: 0.20 }
-    },
-    {
-      id: 3, step_number: 3, student_text: "W = P * (V2 - V1) = 1.45 * 100 * (1.2 - 0.2) = 145.2 kJ", similarity_score: 0.89, status: "MATCHED",
-      diagnosis_text: "Step 3 matched boundary work integration requirement.",
-      rubric_unit: { id: 3, category: "intermediate_step", label: "3. Work Integration", expected_text: "W = P*(V2 - V1) = 145.2 kJ.", weight: 0.25 }
-    },
-    {
-      id: 4, step_number: 4, student_text: "Converted pressure 1.45 bar = 145 kPa and T in Kelvin", similarity_score: 0.91, status: "MATCHED",
-      diagnosis_text: "Step 4 matched unit conversion requirements.",
-      rubric_unit: { id: 4, category: "units", label: "4. Unit Conversions", expected_text: "Convert bar to kPa.", weight: 0.15 }
-    },
-    {
-      id: 5, step_number: 5, student_text: "Q_net = 384.6 kJ", similarity_score: 0.94, status: "MATCHED",
-      diagnosis_text: "Step 5 matched final heat transfer answer.",
-      rubric_unit: { id: 5, category: "final_answer", label: "5. Final Result", expected_text: "Q_net = 384.6 kJ.", weight: 0.20 }
-    }
-  ],
-  reasoning_map: [
-    { step_number: 1, node_type: "concept", title: "1. Reference State", student_claim: "Applied equation directly without T_0.", status: "WEAK", has_reasoning_break: true, similarity_pct: 41.0 },
-    { step_number: 2, node_type: "formula", title: "2. Energy Balance", student_claim: "Q - W = delta U", status: "MATCHED", has_reasoning_break: false, similarity_pct: 88.0 },
-    { step_number: 3, node_type: "intermediate_step", title: "3. Work Integration", student_claim: "W = P*(V2 - V1) = 145.2 kJ", status: "MATCHED", has_reasoning_break: false, similarity_pct: 89.0 },
-    { step_number: 4, node_type: "units", title: "4. Unit Conversions", student_claim: "1.45 bar = 145 kPa", status: "MATCHED", has_reasoning_break: false, similarity_pct: 91.0 },
-    { step_number: 5, node_type: "final_answer", title: "5. Final Result", student_claim: "Q_net = 384.6 kJ", status: "MATCHED", has_reasoning_break: false, similarity_pct: 94.0 }
-  ]
-};
-
-const STEP_BAR_ITEMS = [
-  { step: 'Step 1', score: 41, color: 'bg-red-500' },
-  { step: 'Step 2', score: 88, color: 'bg-green-500' },
-  { step: 'Step 3', score: 89, color: 'bg-green-500' },
-  { step: 'Step 4', score: 91, color: 'bg-green-500' },
-  { step: 'Step 5', score: 94, color: 'bg-green-500' }
-];
-
-const PYQ_LIST = [
-  {
-    id: 1, subject: "Applied Thermodynamics", year: 2025, exam_type: "FAT", difficulty: "Hard",
-    title: "Second Law Analysis & Entropy Generation in Polytropic Expansion",
-    question_text: "A closed system undergoes a polytropic expansion from 5 bar, 500 K to 1 bar. Calculate net entropy generation S_gen and exergy loss assuming T_0 = 298 K.",
-    answer_key_summary: "1. State polytropic relation P1*V1^n = P2*V2^n\n2. S_2 - S_1 = c_p*ln(T2/T1) - R*ln(P2/P1)\n3. Exergy destruction X_destroyed = T_0 * S_gen = 42.8 kJ"
-  },
-  {
-    id: 2, subject: "Applied Thermodynamics", year: 2024, exam_type: "CAT-2", difficulty: "Hard",
-    title: "Rankine Cycle with Reheat & Regeneration Efficiency",
-    question_text: "For a steam power plant operating on ideal reheat Rankine cycle between 15 MPa and 10 kPa with reheat at 3 MPa to 500°C, evaluate thermal efficiency.",
-    answer_key_summary: "1. Pump work W_p = v1*(P2 - P1)\n2. Turbine work W_t1 = h1 - h2\n3. Thermal efficiency eta_th = W_net / Q_in = 43.5%"
-  }
-];
-
 export default function StudentDashboard({ user, onLogout, theme, onToggleTheme }) {
   const [activeTab, setActiveTab] = useState('evaluations'); // 'evaluations', 'reasoning_map', 'doubts', 'pyq'
-  const [submission, setSubmission] = useState(FALLBACK_SUBMISSION);
+  const [submission, setSubmission] = useState(null);
   const [retryModalStep, setRetryModalStep] = useState(null);
   const [selectedOption, setSelectedOption] = useState('');
   const [retryFeedback, setRetryFeedback] = useState(null);
-  const [dataSource, setDataSource] = useState('Loading backend data…');
+  const [dataSource, setDataSource] = useState('Loading saved results…');
+  const [loadError, setLoadError] = useState('');
+  const [pyqs, setPyqs] = useState([]);
   const [retryBusy, setRetryBusy] = useState(false);
 
   // Doubt Center State
@@ -105,16 +28,20 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
   useEffect(() => {
     const loadSubmission = async () => {
       try {
-        const response = await fetch(`${API_BASE}/submissions/student/${user.id}/assignment/1`);
-        if (!response.ok) throw new Error('Submission unavailable');
+        const response = await fetch(`${API_BASE}/submissions/student/${user.id}/latest`);
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.detail || 'Submission unavailable');
+        }
         setSubmission(await response.json());
-        setDataSource('Database-backed seeded submission');
+        setDataSource('Saved database result');
       } catch (error) {
-        setSubmission(FALLBACK_SUBMISSION);
-        setDataSource('Local preview dataset — backend offline');
+        setLoadError(error.message === 'Failed to fetch' ? 'Backend unavailable. Start the API and refresh.' : error.message);
+        setDataSource('No saved result');
       }
     };
     loadSubmission();
+    fetch(`${API_BASE}/pyq/`).then(res => res.ok ? res.json() : []).then(setPyqs).catch(() => setPyqs([]));
   }, [user.id]);
 
   const handleRetrySubmit = async (step) => {
@@ -140,23 +67,28 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
     }
   };
 
-  const handleSendDoubt = (qText) => {
+  const handleSendDoubt = async (qText) => {
     if (!qText.trim()) return;
     setDoubtMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: qText }]);
     setDoubtInput('');
 
-    let aiResp = "";
-    const qLower = qText.toLowerCase();
-    if (qLower.includes("reference state") || qLower.includes("step 1")) {
-      aiResp = "Step 1 failed because internal energy (u) and enthalpy (h) are state functions calculated relative to a reference state (T_0 = 298.15 K, P_0 = 1 atm). Omitting T_0 leaves the energy balance floating without zero-point baseline initialization.";
-    } else {
-      aiResp = `Regarding "${qText}": Break your derivation into 5 atomic units: 1) Reference State, 2) Conservation Equation, 3) Integration, 4) Units, 5) Final Answer.`;
+    try {
+      const step = submission?.steps.find(item => item.status !== 'MATCHED') || submission?.steps[0];
+      const response = await fetch(`${API_BASE}/doubts/ask`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: user.id, step_id: step?.id || null, question_text: qText })
+      });
+      if (!response.ok) throw new Error('Could not save question');
+      const result = await response.json();
+      setDoubtMessages(prev => [...prev, { id: result.id, sender: 'ai', text: result.ai_response }]);
+    } catch (error) {
+      setDoubtMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: 'I could not reach the saved doubt service. Please try again.' }]);
     }
-
-    setTimeout(() => {
-      setDoubtMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: aiResp }]);
-    }, 350);
   };
+
+  if (!submission) {
+    return <div className="theme-page min-h-screen bg-gray-50 p-6 text-gray-900"><div className="mx-auto max-w-2xl rounded-xl border border-gray-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-bold">Hi, {user.full_name}</h1><p className="mt-3 text-sm text-gray-600">{loadError || 'Loading your latest evaluated answer…'}</p><p className="mt-2 text-xs text-gray-500">Ask your teacher to evaluate an answer using your registration number: <strong>{user.register_number}</strong>. It will appear here automatically.</p><button onClick={onLogout} className="mt-6 rounded-lg bg-gray-100 px-4 py-2 text-sm font-bold">Sign out</button></div></div>;
+  }
 
   return (
     <div className="readable-dashboard min-h-screen bg-gray-50 text-gray-900 font-sans">
@@ -248,12 +180,12 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                   <p className="text-sm text-gray-600">Answers Checked</p>
-                  <p className="text-3xl font-bold text-blue-600 mt-2">1</p>
+                  <p className="text-3xl font-bold text-blue-600 mt-2">{submission.student_submission_count || 1}</p>
                 </div>
                 
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                   <p className="text-sm text-gray-600">Passed</p>
-                  <p className="text-3xl font-bold text-green-600 mt-2">1</p>
+                  <p className="text-3xl font-bold text-green-600 mt-2">{submission.student_passed_count ?? (submission.total_ras_score >= 60 ? 1 : 0)}</p>
                 </div>
                 
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
@@ -263,7 +195,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
                 
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                   <p className="text-sm text-gray-600">Teacher Reviews</p>
-                  <p className="text-3xl font-bold text-red-600 mt-2">1</p>
+                  <p className="text-3xl font-bold text-red-600 mt-2">{submission.is_collusion_flagged ? 1 : 0}</p>
                 </div>
               </div>
             </section>
@@ -275,21 +207,21 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-gray-900 text-base">How Each Step Matched the Marking Guide</h3>
-                  <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded">5 Steps Analyzed</span>
+                  <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded">{submission.steps.length} Steps Analyzed</span>
                 </div>
                 <p className="text-xs text-gray-500">A step-by-step comparison with what the teacher expected.</p>
                 
                 <div className="space-y-3 pt-2">
-                  {STEP_BAR_ITEMS.map((item, idx) => (
-                    <div key={idx} className="space-y-1">
+                  {submission.steps.map((item) => (
+                    <div key={item.id} className="space-y-1">
                       <div className="flex justify-between text-xs font-bold text-gray-700">
-                        <span>{item.step}</span>
-                        <span>{item.score}% Match</span>
+                        <span>Step {item.step_number}</span>
+                        <span>{Math.round(item.similarity_score * 100)}% Match</span>
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-3">
                         <div
-                          className={`h-3 rounded-full ${item.color} transition-all duration-500`}
-                          style={{ width: `${item.score}%` }}
+                          className={`h-3 rounded-full ${item.status === 'MATCHED' ? 'bg-green-500' : 'bg-red-500'} transition-all duration-500`}
+                          style={{ width: `${item.similarity_score * 100}%` }}
                         ></div>
                       </div>
                     </div>
@@ -301,7 +233,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-gray-900 text-base">Steps Meeting the Marking Guide</h3>
-                  <span className="text-xs font-mono font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded">80% Pass Rate</span>
+                  <span className="text-xs font-mono font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded">{Math.round((submission.steps.filter(step => step.status === 'MATCHED').length / Math.max(1, submission.steps.length)) * 100)}% Pass Rate</span>
                 </div>
                 <p className="text-xs text-gray-500">How many answer steps are complete and how many need another attempt.</p>
                 
@@ -360,7 +292,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-bold text-gray-900 text-sm">{submission.assignment_title}</h3>
-                        <p className="text-xs text-gray-600 mt-1">Submitted: 29/8/2026</p>
+                        <p className="text-xs text-gray-600 mt-1">Submitted: {new Date(submission.submission_time).toLocaleDateString()}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-blue-600">{submission.total_ras_score.toFixed(0)}%</p>
@@ -566,7 +498,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
             </div>
 
             <div className="space-y-4">
-              {PYQ_LIST.map(q => (
+              {pyqs.map(q => (
                 <div key={q.id} className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="px-2.5 py-0.5 text-xs font-bold bg-blue-100 text-blue-700 rounded">{q.exam_type} ({q.year})</span>
@@ -588,6 +520,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
                   )}
                 </div>
               ))}
+              {!pyqs.length && <p className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-500">No practice papers have been added yet.</p>}
             </div>
           </div>
         )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   LogOut, Users, BookOpen, BarChart3, ShieldAlert, 
   Sparkles, Send, FileText, CheckCircle, Search, Grid
@@ -7,43 +7,12 @@ import ThemeToggle from './ThemeToggle';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8008/api';
 
-const FALLBACK_ANALYTICS = {
-  class_average_ras: 74.5,
-  cohort_total_scripts: 240,
-  weakness_heatmap: [
-    { rubric_unit_id: 1, label: "1. System boundary", pass_rate_pct: 50.0, weakness_level: "HIGH" },
-    { rubric_unit_id: 2, label: "2. First Law", pass_rate_pct: 100.0, weakness_level: "LOW" },
-    { rubric_unit_id: 3, label: "3. Work Integration", pass_rate_pct: 100.0, weakness_level: "LOW" },
-    { rubric_unit_id: 4, label: "4. Unit Conversions", pass_rate_pct: 75.0, weakness_level: "MODERATE" },
-    { rubric_unit_id: 5, label: "5. Final Answer", pass_rate_pct: 100.0, weakness_level: "LOW" }
-  ],
-  error_clusters: [
-    { id: 1, cluster_name: "Unspecified Reference State Baseline", frequency: 80, percentage: 33.3, description: "Students applied first law enthalpy equations directly without defining baseline reference temperature T_0 and pressure P_0." },
-    { id: 2, cluster_name: "Bar to kPa Unit Conversion Slip", frequency: 45, percentage: 18.8, description: "Students substituted pressure values in bar directly into SI equations without multiplying by 100 kPa/bar factor." }
-  ]
-};
-
-const RUBRIC_BAR_ITEMS = [
-  { name: '1. Ref State', passRate: 50, color: 'bg-red-500' },
-  { name: '2. First Law', passRate: 100, color: 'bg-green-500' },
-  { name: '3. Work Integr.', passRate: 100, color: 'bg-green-500' },
-  { name: '4. Unit Conv.', passRate: 75, color: 'bg-amber-500' },
-  { name: '5. Final Ans.', passRate: 100, color: 'bg-green-500' }
-];
-
-const FALLBACK_MALPRACTICE = {
-  total_flagged_pairs: 1,
-  cmi_threshold: 0.88,
-  collusion_pairs: [
-    { id: 1, student_a_name: "Mangalapalli Sohum Seshu Krish", student_a_reg: "26BCE0616", student_b_name: "Rayed Rabbanee", student_b_reg: "26BCE0606", cmi_score: 0.92, cos_sim: 0.94, error_match_score: 0.90, flagged_reason: "High CMI (0.92 >= 0.88). Shared identical non-standard reference state omission at Step 1.", status: "FLAGGED" }
-  ]
-};
-
 export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme }) {
   const [activeTab, setActiveTab] = useState('analytics'); // 'analytics', 'malpractice', 'auto_evaluator', 'pyq'
   
   // Custom Dynamic Assignment Creation
   const [assTitle, setAssTitle] = useState('');
+  const [assSubject, setAssSubject] = useState('');
   const [assKeyText, setAssKeyText] = useState('');
   const [evalMsg, setEvalMsg] = useState('');
 
@@ -53,9 +22,51 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
   const [step1Text, setStep1Text] = useState('');
   const [step2Text, setStep2Text] = useState('');
   const [evalResult, setEvalResult] = useState(null);
-  const [assignmentId, setAssignmentId] = useState(1);
+  const [assignmentId, setAssignmentId] = useState(null);
+  const [assignments, setAssignments] = useState([]);
+  const [classroom, setClassroom] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [malpractice, setMalpractice] = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState('');
+
+  useEffect(() => {
+    const loadWorkspace = async () => {
+      try {
+        let response = await fetch(`${API_BASE}/classrooms/?teacher_id=${user.id}`);
+        if (!response.ok) throw new Error('Could not load classrooms');
+        let rooms = await response.json();
+        if (!rooms.length) {
+          response = await fetch(`${API_BASE}/classrooms/create`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: `${user.full_name}'s class`, subject: 'General', teacher_id: user.id })
+          });
+          if (!response.ok) throw new Error('Could not create workspace');
+          rooms = [await response.json()];
+        }
+        setClassroom(rooms[0]);
+        response = await fetch(`${API_BASE}/assignments/?teacher_id=${user.id}`);
+        if (!response.ok) throw new Error('Could not load assignments');
+        const savedAssignments = await response.json();
+        setAssignments(savedAssignments);
+        if (savedAssignments.length) setAssignmentId(savedAssignments[0].id);
+      } catch (error) { setActionError('Could not connect to the persistent workspace. Check the backend.'); }
+    };
+    loadWorkspace();
+  }, [user.id, user.full_name]);
+
+  const refreshReports = async (id) => {
+    if (!id) { setAnalytics(null); setMalpractice(null); return; }
+    const [analyticsResponse, malpracticeResponse] = await Promise.all([
+      fetch(`${API_BASE}/analytics/assignment/${id}`),
+      fetch(`${API_BASE}/malpractice/assignment/${id}`)
+    ]);
+    if (!analyticsResponse.ok || !malpracticeResponse.ok) throw new Error('Could not load reports');
+    setAnalytics(await analyticsResponse.json());
+    setMalpractice(await malpracticeResponse.json());
+  };
+
+  useEffect(() => { refreshReports(assignmentId).catch(() => setActionError('Could not load assignment reports.')); }, [assignmentId]);
 
   const handleCreateRubric = async (e) => {
     e.preventDefault();
@@ -68,8 +79,8 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: assTitle,
-          subject: 'Applied Thermodynamics',
-          classroom_id: 1,
+          subject: assSubject,
+          classroom_id: classroom.id,
           answer_key_text: assKeyText,
           total_marks: 100
         })
@@ -77,6 +88,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
       if (!response.ok) throw new Error(await response.text());
       const assignment = await response.json();
       setAssignmentId(assignment.id);
+      setAssignments(prev => [{ ...assignment, units_count: 0, total_scripts: 0 }, ...prev]);
       setEvalMsg(`Assignment ${assignment.id} saved. Its rubric is ready for deterministic step matching.`);
     } catch (error) {
       setActionError('Could not save the rubric. Start the FastAPI backend on port 8008 and try again.');
@@ -106,6 +118,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
       });
       if (!response.ok) throw new Error(await response.text());
       setEvalResult(await response.json());
+      await refreshReports(assignmentId);
     } catch (error) {
       setActionError('Evaluation failed. Confirm the backend is running and the selected assignment has rubric units.');
     } finally {
@@ -189,6 +202,13 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
 
       {/* Main Content Area */}
       <main key={activeTab} className="dashboard-view-transition max-w-7xl mx-auto px-6 py-8">
+        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div><p className="text-xs font-bold uppercase tracking-wide text-gray-500">Persistent workspace</p><p className="text-sm font-semibold text-gray-900">{classroom?.name || 'Loading classroom…'} {classroom?.code ? `• Join code ${classroom.code}` : ''}</p></div>
+          <select value={assignmentId || ''} onChange={e => setAssignmentId(Number(e.target.value))} className="rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+            <option value="">No assignment selected</option>
+            {assignments.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+          </select>
+        </div>
         
         {/* TAB 1: CLASSROOM ANALYTICS & CHARTS */}
         {activeTab === 'analytics' && (
@@ -196,19 +216,19 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                 <p className="text-xs text-gray-600 uppercase font-semibold">Average Reasoning Score</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">74.5%</p>
+                <p className="text-3xl font-bold text-blue-600 mt-2">{analytics?.class_average_ras ?? 0}%</p>
                 <p className="text-xs text-gray-500 mt-1">RAS: score against the marking guide</p>
               </div>
               
               <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                <p className="text-xs text-gray-600 uppercase font-semibold">Demo Class Size</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">240 Simulated Answers</p>
-                <p className="text-xs text-gray-500 mt-1">Illustrative cohort, not uploaded scripts</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">Answers Evaluated</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">{analytics?.cohort_total_scripts ?? 0}</p>
+                <p className="text-xs text-gray-500 mt-1">Actual saved submissions</p>
               </div>
               
               <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                 <p className="text-xs text-gray-600 uppercase font-semibold">Similar Answers to Review</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">1 Pair</p>
+                <p className="text-3xl font-bold text-red-600 mt-2">{malpractice?.total_flagged_pairs ?? 0}</p>
               </div>
             </div>
 
@@ -219,21 +239,21 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-gray-900 text-base">Where Students Lost Marks</h3>
-                  <span className="text-xs font-mono font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded">74.5% Class Avg</span>
+                  <span className="text-xs font-mono font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded">{analytics?.class_average_ras ?? 0}% Class Avg</span>
                 </div>
-                <p className="text-xs text-gray-500">Percentage of the demo class meeting each part of the marking guide.</p>
+                <p className="text-xs text-gray-500">Percentage of saved submissions meeting each part of the marking guide.</p>
                 
                 <div className="space-y-3 pt-2">
-                  {RUBRIC_BAR_ITEMS.map((item, idx) => (
-                    <div key={idx} className="space-y-1">
+                  {(analytics?.weakness_heatmap || []).map((item) => (
+                    <div key={item.rubric_unit_id} className="space-y-1">
                       <div className="flex justify-between text-xs font-bold text-gray-700">
-                        <span>{item.name}</span>
-                        <span>{item.passRate}% Pass Rate</span>
+                        <span>{item.label}</span>
+                        <span>{item.pass_rate_pct}% Pass Rate</span>
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-3">
                         <div
-                          className={`h-3 rounded-full ${item.color} transition-all duration-500`}
-                          style={{ width: `${item.passRate}%` }}
+                          className={`h-3 rounded-full ${item.pass_rate_pct >= 75 ? 'bg-green-500' : item.pass_rate_pct >= 50 ? 'bg-amber-500' : 'bg-red-500'} transition-all duration-500`}
+                          style={{ width: `${item.pass_rate_pct}%` }}
                         ></div>
                       </div>
                     </div>
@@ -244,8 +264,8 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
               {/* Pie Chart / Donut Chart: Cohort Performance Breakdown */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-base">Demo Class Score Distribution</h3>
-                  <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded">Seeded scenario</span>
+                  <h3 className="font-bold text-gray-900 text-base">Class Score Distribution</h3>
+                  <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded">Live records</span>
                 </div>
                 <p className="text-xs text-gray-500">Breakdown of student cohort by performance brackets.</p>
                 
@@ -258,7 +278,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
                       <path className="text-green-500" strokeWidth="4" strokeDasharray="50, 100" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                     </svg>
                     <div className="absolute flex flex-col items-center">
-                      <span className="text-xl font-bold text-gray-900">240</span>
+                      <span className="text-xl font-bold text-gray-900">{analytics?.cohort_total_scripts ?? 0}</span>
                       <span className="text-xs text-gray-500 font-bold uppercase">Total</span>
                     </div>
                   </div>
@@ -266,15 +286,15 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
                   <div className="space-y-2 text-xs font-bold">
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded bg-green-500"></div>
-                      <span className="text-gray-800">Distinction (&gt;80%): 120 (50%)</span>
+                      <span className="text-gray-800">Distinction (≥80%): {analytics?.score_distribution?.distinction ?? 0}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded bg-blue-500"></div>
-                      <span className="text-gray-800">Average (60-80%): 80 (33.3%)</span>
+                      <span className="text-gray-800">Average (60–79%): {analytics?.score_distribution?.average ?? 0}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded bg-red-500"></div>
-                      <span className="text-gray-800">Weak (&lt;60%): 40 (16.7%)</span>
+                      <span className="text-gray-800">Needs support (&lt;60%): {analytics?.score_distribution?.weak ?? 0}</span>
                     </div>
                   </div>
                 </div>
@@ -286,7 +306,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
               <h3 className="font-bold text-gray-900 text-base">Common Class Mistakes</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {FALLBACK_ANALYTICS.error_clusters.map(c => (
+                {(analytics?.error_clusters || []).map(c => (
                   <div key={c.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-xs text-gray-900">{c.cluster_name}</span>
@@ -295,6 +315,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
                     <p className="text-xs text-gray-600">{c.description}</p>
                   </div>
                 ))}
+                {!analytics?.error_clusters?.length && <p className="text-sm text-gray-500">No recurring weak steps yet. Evaluate answers to build this view.</p>}
               </div>
             </div>
           </div>
@@ -315,7 +336,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
 
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
               <h3 className="font-bold text-gray-900 text-base">Possible Similarity Match</h3>
-              {FALLBACK_MALPRACTICE.collusion_pairs.map(pair => (
+              {(malpractice?.collusion_pairs || []).map(pair => (
                 <div key={pair.id} className="p-5 bg-red-50 border border-red-200 rounded-lg space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-red-900 text-sm">
@@ -328,6 +349,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
                   <p className="text-xs text-red-800">{pair.flagged_reason}</p>
                 </div>
               ))}
+              {!malpractice?.collusion_pairs?.length && <p className="text-sm text-gray-500">No answer pairs currently cross the review threshold.</p>}
             </div>
           </div>
         )}
@@ -343,6 +365,10 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
               </h3>
               
               <form onSubmit={handleCreateRubric} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Subject</label>
+                  <input type="text" value={assSubject} onChange={(e) => setAssSubject(e.target.value)} placeholder="e.g. Applied Thermodynamics" className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none" required />
+                </div>
                 <div>
                   <label className="block font-bold text-gray-700 mb-1">Exam Title</label>
                   <input
@@ -369,7 +395,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
 
                 <button
                   type="submit"
-                  disabled={actionBusy}
+                  disabled={actionBusy || !classroom}
                   className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition disabled:opacity-50"
                 >
                   {actionBusy ? 'Saving…' : 'Create and Save Marking Guide'}
@@ -441,10 +467,10 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
 
                 <button
                   type="submit"
-                  disabled={actionBusy}
+                  disabled={actionBusy || !assignmentId}
                   className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition disabled:opacity-50"
                 >
-                  {actionBusy ? 'Checking…' : `Check Answer with Marking Guide ${assignmentId}`}
+                  {actionBusy ? 'Checking…' : assignmentId ? `Check Answer with Marking Guide ${assignmentId}` : 'Create or select a marking guide first'}
                 </button>
               </form>
 

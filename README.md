@@ -61,24 +61,25 @@ The **Cohort Malpractice Index (CMI)** combines semantic similarity with shared 
 
 A high score creates a teacher-review flag. It is contextual evidence, not an automatic accusation.
 
-## Demonstration scenario
+## Optional demonstration scenario
 
-The current prototype follows an Applied Thermodynamics CAT-1 answer about the First Law and state-reference equations.
+An Applied Thermodynamics CAT-1 sample remains available when the backend is explicitly started with demo seeding enabled.
 
 - The database seed contains one teacher, four students, one classroom, one assignment, five rubric units, and four example submissions.
-- Class analytics expand those examples into an explicitly labelled **240-answer simulated cohort** for demonstration.
-- The displayed class average of **74.5%**, error clusters, and similarity pair are seeded scenario values—not results from 240 uploaded papers.
+- Demo records stay labelled as synthetic and are never expanded into a fictional cohort.
+- In normal operation, class size, average score, weak-step clusters, and similarity pairs are calculated from saved submissions.
 - The targeted retry demonstrates a student improving from **60% to 70% RAS** after recovering the missing reference-state concept.
 
 All names, answers, scores, and integrity signals in this scenario are synthetic demonstration data. No VIT student dataset or external answer-script dataset was used.
 
 ## What is working today
 
-- Role-based teacher and student prototype journeys
-- Weighted rubric decomposition for custom marking guides
+- Persistent teacher and student account profiles
+- Teacher-owned classrooms with reusable join codes
+- Weighted rubric decomposition from custom marking-guide steps
 - Step-level semantic alignment with deterministic fallback
 - RAS calculation and diagnostic feedback
-- Seeded classroom analytics and recurring-error clusters
+- Database-derived classroom analytics and recurring-error clusters
 - CMI pair comparison and teacher review interface
 - Student Reasoning Map and targeted retry interaction
 - SQLite-backed API models for users, classrooms, assignments, submissions, rubric units, retries, PYQs, and doubts
@@ -88,10 +89,9 @@ All names, answers, scores, and integrity signals in this scenario are synthetic
 
 AnswerDoctor is a hackathon prototype, not a production assessment system.
 
-- Demo access is not production authentication.
+- Account identity is persistent, but password authentication and institutional SSO are not implemented yet.
 - The visible OCR spike currently returns simulated structured extraction; it has not been validated on a real uploaded handwriting dataset.
-- Several dashboard interactions use deterministic seeded or browser-side logic to keep the demonstration reliable.
-- The 240-answer view is a simulated cohort derived from the small seeded scenario.
+- Semantic scoring and doubt responses currently use deterministic local logic rather than a validated production ML service.
 - CMI requires faculty interpretation and must not be treated as proof of misconduct.
 - Accuracy, fairness, accessibility, privacy, and institutional workflow validation remain future work.
 

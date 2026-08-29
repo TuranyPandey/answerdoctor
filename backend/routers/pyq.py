@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import PYQQuestion
 from typing import Optional
+import json
 
 router = APIRouter(prefix="/api/pyq", tags=["PYQ Vault"])
 
@@ -28,7 +29,7 @@ def get_pyqs(subject: Optional[str] = None, year: Optional[int] = None, exam_typ
             "question_text": q.question_text,
             "answer_key_summary": q.answer_key_summary,
             "difficulty": q.difficulty,
-            "topics": eval(q.topics_json) if q.topics_json else []
+            "topics": json.loads(q.topics_json) if q.topics_json else []
         })
     return res
 
@@ -46,5 +47,5 @@ def get_pyq_detail(pyq_id: int, db: Session = Depends(get_db)):
         "question_text": q.question_text,
         "answer_key_summary": q.answer_key_summary,
         "difficulty": q.difficulty,
-        "topics": eval(q.topics_json) if q.topics_json else []
+        "topics": json.loads(q.topics_json) if q.topics_json else []
     }

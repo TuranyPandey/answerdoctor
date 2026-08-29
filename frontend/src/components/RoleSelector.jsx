@@ -19,7 +19,7 @@ export default function RoleSelector({ onSelectRole, theme, onToggleTheme }) {
           <p className="text-[11px] mt-2 font-bold uppercase tracking-widest text-blue-600">Review 2 working prototype</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
-          <div><h2 className="text-lg font-semibold text-gray-900">Choose a demo perspective</h2><p className="text-xs text-gray-500 mt-1">Both views use the same seeded thermodynamics assessment.</p></div>
+          <div><h2 className="text-lg font-semibold text-gray-900">How will you use AnswerDoctor?</h2><p className="text-xs text-gray-500 mt-1">Choose a workspace, then sign in or create a persistent account.</p></div>
           <div className="grid grid-cols-2 gap-4">
             {roles.map(({ id, label, icon: Icon, selected }) => (
               <button key={id} onClick={() => setSelectedRole(id)} className={`p-6 rounded-xl border-2 transition flex flex-col items-center gap-3 ${selectedRole === id ? selected : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
@@ -27,8 +27,8 @@ export default function RoleSelector({ onSelectRole, theme, onToggleTheme }) {
               </button>
             ))}
           </div>
-          <button onClick={() => onSelectRole({ role: selectedRole, authType: 'demo' })} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition">Continue to demo access</button>
-          <p className="text-xs text-center text-gray-500">This prototype does not claim production authentication.</p>
+          <button onClick={() => onSelectRole({ role: selectedRole })} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition">Continue</button>
+          <p className="text-xs text-center text-gray-500">Records are stored by the running backend, not embedded in this page.</p>
         </div>
       </div>
     </div>

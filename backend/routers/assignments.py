@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Assignment, RubricUnit, Submission
+from models import Assignment, RubricUnit, Submission, Classroom
 from services.rubric_decomposer import decompose_answer_key
 from pydantic import BaseModel
-from typing import List
 
 router = APIRouter(prefix="/api/assignments", tags=["Assignments"])
 
@@ -15,23 +14,33 @@ class AssignmentCreate(BaseModel):
     answer_key_text: str
     total_marks: float = 100.0
 
+@router.get("/")
+def list_teacher_assignments(teacher_id: int, db: Session = Depends(get_db)):
+    assignments = (
+        db.query(Assignment)
+        .join(Classroom, Assignment.classroom_id == Classroom.id)
+        .filter(Classroom.teacher_id == teacher_id)
+        .order_by(Assignment.created_at.desc())
+        .all()
+    )
+    return [_assignment_summary(a, db) for a in assignments]
+
+def _assignment_summary(a: Assignment, db: Session):
+    submissions_count = db.query(Submission).filter(Submission.assignment_id == a.id).count()
+    return {
+        "id": a.id, "title": a.title, "subject": a.subject,
+        "classroom_id": a.classroom_id, "total_marks": a.total_marks,
+        "total_scripts": submissions_count,
+        "units_count": db.query(RubricUnit).filter(RubricUnit.assignment_id == a.id).count(),
+        "status": a.status, "created_at": a.created_at
+    }
+
 @router.get("/classroom/{classroom_id}")
 def list_assignments(classroom_id: int, db: Session = Depends(get_db)):
     assignments = db.query(Assignment).filter(Assignment.classroom_id == classroom_id).all()
     res = []
     for a in assignments:
-        units_count = db.query(RubricUnit).filter(RubricUnit.assignment_id == a.id).count()
-        submissions_count = db.query(Submission).filter(Submission.assignment_id == a.id).count()
-        res.append({
-            "id": a.id,
-            "title": a.title,
-            "subject": a.subject,
-            "total_marks": a.total_marks,
-            "total_scripts": max(a.total_scripts, submissions_count),
-            "units_count": units_count,
-            "status": a.status,
-            "created_at": a.created_at
-        })
+        res.append(_assignment_summary(a, db))
     return res
 
 @router.get("/{assignment_id}")
@@ -62,6 +71,13 @@ def get_assignment_details(assignment_id: int, db: Session = Depends(get_db)):
 
 @router.post("/create")
 def create_assignment(req: AssignmentCreate, db: Session = Depends(get_db)):
+    classroom = db.query(Classroom).filter(Classroom.id == req.classroom_id).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Classroom not found")
+    try:
+        units = decompose_answer_key(req.answer_key_text)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     assignment = Assignment(
         title=req.title,
         subject=req.subject,
@@ -74,8 +90,6 @@ def create_assignment(req: AssignmentCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(assignment)
 
-    # Decompose answer key into atomic units
-    units = decompose_answer_key(req.answer_key_text)
     for u in units:
         db.add(RubricUnit(
             assignment_id=assignment.id,
