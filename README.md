@@ -101,8 +101,6 @@ These constraints are intentional: the prototype demonstrates the reasoning-feed
 
 AnswerDoctor uses React, Vite and Tailwind CSS for the interface; FastAPI, SQLAlchemy and SQLite for the API and persistence layer; and SentenceTransformers or TF–IDF for semantic alignment. The repository also contains the rubric decomposition, diagnosis, retry, cohort-analysis, PYQ, and doubt-service modules used by the demonstration.
 
-Implementation and deployment notes live in [PROTOTYPE_GUIDE.md](PROTOTYPE_GUIDE.md) and [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md), keeping this README focused on the product itself.
-
 ## Team
 
 Built by **Team trpSurgewave** for VIT GDG DevJams 2026:
