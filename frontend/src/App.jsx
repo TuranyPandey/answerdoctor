@@ -38,10 +38,8 @@ export default function App() {
     return (
       <AuthForm 
         role={roleData?.role}
-        selectedRole={roleData?.role}
         authType={roleData?.authType}
         onLogin={handleLogin}
-        onLoginSuccess={handleLogin}
         onBack={handleBackToRole}
       />
     );
