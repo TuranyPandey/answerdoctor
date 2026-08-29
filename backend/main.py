@@ -1,7 +1,7 @@
 import os
 import json
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Annotated
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -150,7 +150,7 @@ async def evaluate_script(
 
 @app.post("/api/batch-evaluate")
 async def batch_evaluate(
-    files: List[UploadFile] = File(...),
+    files: Annotated[list[UploadFile], File(description="Upload multiple student answer scripts")],
     decomposed_rubric_json: Optional[str] = Form(None)
 ):
     """
