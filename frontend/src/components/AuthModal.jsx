@@ -11,16 +11,22 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   if (!isOpen) return null;
 
   const handleGoogleSignIn = () => {
-    const mockUser = {
-      full_name: role === 'teacher' ? 'Prof. Rajesh Sharma' : 'Mangalapalli Sohum Seshu Krish',
-      email: role === 'teacher' ? 'prof.sharma@vit.ac.in' : 'sohum@vit.ac.in',
+    // Simulates instant verified Google OAuth response
+    const mockGoogleUser = {
+      full_name: role === 'teacher' ? 'Prof. Rajesh Sharma' : 'Mangalapalli Sohum',
+      email: role === 'teacher' ? 'prof.sharma@vit.ac.in' : 'mangalapalli.ss@gmail.com',
       register_number: role === 'teacher' ? null : '26BCE0616',
       role: role,
+      token: "mock-google-jwt-token-xyz",
       avatar_url: role === 'teacher' 
         ? "https://api.dicebear.com/7.x/avataaars/svg?seed=Rajesh"
         : "https://api.dicebear.com/7.x/avataaars/svg?seed=Sohum"
     };
-    onLoginSuccess(mockUser);
+
+    localStorage.setItem("user", JSON.stringify(mockGoogleUser));
+    localStorage.setItem("token", mockGoogleUser.token);
+
+    onLoginSuccess(mockGoogleUser);
     onClose();
   };
 
@@ -31,8 +37,13 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       email: email || (role === 'teacher' ? 'faculty@vit.ac.in' : 'student@vit.ac.in'),
       register_number: regNo || (role === 'teacher' ? null : '26BCE0000'),
       role: role,
+      token: "mock-credentials-jwt-token",
       avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email || 'user'}`
     };
+
+    localStorage.setItem("user", JSON.stringify(mockUser));
+    localStorage.setItem("token", mockUser.token);
+
     onLoginSuccess(mockUser);
     onClose();
   };
@@ -106,7 +117,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                   type="text" 
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="e.g. Prof. Rajesh Sharma"
+                  placeholder="e.g. Mangalapalli Sohum"
                   className="bg-transparent text-white focus:outline-none w-full"
                 />
               </div>
@@ -121,7 +132,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@vit.ac.in"
+                placeholder="mangalapalli.ss@gmail.com"
                 className="bg-transparent text-white focus:outline-none w-full"
               />
             </div>
