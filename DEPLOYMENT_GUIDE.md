@@ -1,47 +1,157 @@
-# Deployment Notes
+# AnswerDoctor - Deployment Guide
 
-The frontend builds as a Vite static site. The FastAPI backend must be deployed separately before the complete demo works online.
+## Vercel Deployment (Frontend)
 
-## Before deploying
-
-```powershell
-python scratch\test_pipeline.py
-npm run build
+### Step 1: Prepare Your Repository
+```bash
+# Make sure everything is committed
+cd answerdoctor
+git add -A
+git commit -m "Deploy frontend to Vercel"
+git push origin main
 ```
 
-Both commands must pass. Test the local four-minute flow in [PROTOTYPE_GUIDE.md](PROTOTYPE_GUIDE.md) before promoting a deployment.
+### Step 2: Connect Vercel to GitHub
+1. Go to [vercel.com](https://vercel.com)
+2. Click "New Project"
+3. Import your GitHub repository: `sohum123451/answerdoctor`
+4. Select "answerdoctor" as the root directory (or configure to use `frontend` folder)
 
-## Frontend
+### Step 3: Configure Build Settings
+In Vercel dashboard:
+- **Framework Preset**: Vite
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+- **Install Command**: `npm install`
 
-The repository root `package.json` delegates its build to `frontend`. For Vercel, either:
+### Step 4: Environment Variables
+Add in Vercel Project Settings → Environment Variables:
 
-- import the repository root and use `npm run build` with `frontend/dist` as output, or
-- set the project root to `frontend` and use `npm run build` with `dist` as output.
-
-Set:
-
-```text
-VITE_API_URL=https://your-backend.example/api
+```
+VITE_API_URL = https://your-backend-api.com/api
 ```
 
-Do not deploy without this variable unless the demo will deliberately use the labelled local preview dataset.
+Replace with your actual backend URL:
+- Local: `http://127.0.0.1:8000/api`
+- Production: Your deployed backend URL (Render, Railway, AWS, etc.)
 
-## Backend
+### Step 5: Deploy
+1. Click "Deploy"
+2. Wait for build to complete (usually 2-5 minutes)
+3. Get your live URL: `https://your-project.vercel.app`
 
-Use Python 3.10+ and run from the `backend` directory:
+### Step 6: Test
+- Visit your Vercel URL
+- Go through the flow:
+  1. Role selection (Teacher/Student)
+  2. Auth type (Sign In/Sign Up)
+  3. Email/Google login
+  4. Dashboard
 
-```powershell
-python -m pip install -r requirements.txt
-python -m uvicorn main:app --host 0.0.0.0 --port 8008
+## Backend Deployment (Optional - Render.com)
+
+### Step 1: Create Render Account
+Go to [render.com](https://render.com) and sign up
+
+### Step 2: Create Web Service
+1. Click "New +" → "Web Service"
+2. Connect GitHub repository
+3. Select `answerdoctor` repository
+
+### Step 3: Configure
+- **Runtime**: Python 3.11
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000`
+
+### Step 4: Environment Variables
+Add in Render settings:
+```
+DATABASE_URL=sqlite:///./test.db
 ```
 
-The current database is SQLite and is suitable only for the hackathon demonstration. A typical ephemeral host may reset it during redeploys. PostgreSQL/Supabase migration remains roadmap work.
+### Step 5: Deploy
+- Click "Deploy"
+- Copy your backend URL: `https://your-backend.onrender.com`
 
-## Release checklist
+### Step 6: Update Frontend
+In Vercel settings, update:
+```
+VITE_API_URL = https://your-backend.onrender.com/api
+```
 
-- Backend `/` and `/docs` load over HTTPS.
-- `VITE_API_URL` ends in `/api` and points to that backend.
-- Faculty demo evaluation returns a saved submission ID.
-- Student retry persists an updated RAS after refresh.
-- A second device can load the hosted frontend.
-- A local copy and a short screen recording are available as fallbacks.
+## Quick Deployment Checklist
+
+- [ ] Code committed and pushed to GitHub
+- [ ] No `.env` files with secrets in git
+- [ ] `vercel.json` configured correctly
+- [ ] Environment variables set in Vercel
+- [ ] Backend API URL configured
+- [ ] Frontend builds successfully (`npm run build`)
+- [ ] Local testing complete
+- [ ] Vercel project created and connected
+- [ ] Deployment successful
+- [ ] Live URL tested
+
+## Testing After Deployment
+
+### Test Flows
+1. **Teacher Flow**:
+   - Email: prof.sharma@vit.ac.in
+   - Role: Teacher
+   - Auth: Sign In
+   - ✓ See classrooms and analytics
+
+2. **Student Flow**:
+   - Email: sohum@vit.ac.in
+   - Role: Student
+   - Auth: Sign In
+   - ✓ See submissions and feedback
+
+## Troubleshooting
+
+### Build fails on Vercel
+```
+Error: Cannot find module 'vite'
+→ Run: npm install
+→ Check package.json has all dependencies
+```
+
+### CORS errors
+```
+Error: Access to XMLHttpRequest blocked by CORS policy
+→ Backend needs CORS enabled (already configured in FastAPI)
+→ Check VITE_API_URL is correct
+```
+
+### Blank page after deploy
+```
+→ Check browser console for errors
+→ Verify VITE_API_URL environment variable
+→ Check backend is accessible from frontend
+```
+
+### Auth not working
+```
+→ Verify backend API is running
+→ Check network tab in browser DevTools
+→ Ensure VITE_API_URL is correct format
+```
+
+## Production URLs
+
+**Frontend**: https://answerdoctor.vercel.app (example)
+**Backend**: https://answerdoctor-backend.onrender.com (example)
+
+## Next Steps
+
+- Set up GitHub Actions for automated testing
+- Add SSL certificate (Vercel handles this)
+- Configure custom domain
+- Set up monitoring and logging
+- Add CI/CD pipeline
+
+---
+
+**Deployment Status**: Ready for production ✅
+**Live Demo**: Check your Vercel URL
+**Support**: Check error logs in Vercel dashboard

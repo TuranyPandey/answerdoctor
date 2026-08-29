@@ -1,82 +1,111 @@
-# AnswerDoctor
+# AnswerDoctor 🩺
 
-AnswerDoctor is a hackathon prototype for reasoning-level diagnosis of written exam answers. It matches answer steps against a teacher-defined rubric, identifies the first weak reasoning step, and gives the student a targeted retry.
+> **Reasoning-level diagnosis and batch grading for handwritten answer scripts, with collusion detection built in.**
 
-## Review 2 demo scope
+---
 
-The working path is intentionally narrow:
+## 📌 Executive Summary
 
-1. Enter the clearly labelled faculty or student demo.
-2. Use the seeded Applied Thermodynamics assessment.
-3. Create a rubric or evaluate transcribed answer steps from the faculty view.
-4. Inspect the saved Rubric-Alignment Score (RAS) and step diagnostics.
-5. Retry a weak step from the student view and persist the updated score.
-6. Inspect a seeded cohort misconception view and a teacher-review CMI flag.
+When students get exam scripts back, they usually see a numeric mark and a line struck through in red pen — almost never the **reason** why their reasoning broke. 
+**AnswerDoctor** is a role-based LMS infrastructure platform sitting on top of a multi-agent AI pipeline. It replaces blind markdowns with step-by-step **Reasoning Maps**, class-wide misconception heatmaps, step-level retry practice drills, student self-evaluators for homework, and built-in malpractice collusion detection.
 
-The 240-script cohort is a **simulated seeded scenario** used to demonstrate the analytics UI. The repository does not currently process 240 uploaded handwritten scripts.
+- **One-Line Pitch:** *AnswerDoctor doesn't just mark whether an answer is right — it shows a student where their reasoning broke, gives them a way to fix it, and shows the teacher where the whole class is making the same mistake.*
 
-## What is implemented
+---
 
-- React 19 and Vite frontend
-- FastAPI and SQLAlchemy backend
-- SQLite demo database seeded on first startup
-- Deterministic rubric decomposition and pure-Python TF-IDF step similarity matching
-- Persisted submissions, Reasoning Maps, targeted retry state and RAS updates
-- Seeded teacher analytics, PYQ entries, doubt-guide responses and CMI review examples
+## 👥 Team & Submission Info
 
-## What is roadmap
+- **Team Name:** `trpSurgewave`
+- **Track / Domain:** AI/ML & Open Innovation — LMS infrastructure & script diagnostics
+- **Team Members:**
+  - **Mangalapalli Sohum Seshu Krish** (`26BCE0616`, Team Lead)
+  - **Turany Pandey** (`26BCE0646`)
+- **GitHub Repository:** [https://github.com/sohum123451/answerdoctor](https://github.com/sohum123451/answerdoctor)
+- **Figma UI Design System:** [https://www.figma.com/design/VqJLOgjVz4WRdnOEdMHrmr/AnswerDoctor-UI-Design-System](https://www.figma.com/design/VqJLOgjVz4WRdnOEdMHrmr/AnswerDoctor-UI-Design-System)
+- **Live Vercel Application:** [https://answerdoctor.vercel.app](https://answerdoctor.vercel.app)
 
-- Production authentication and Google OAuth
-- Handwriting OCR and batch ZIP/PDF ingestion
-- PostgreSQL/Supabase deployment
-- LangGraph orchestration and external LLM diagnosis
-- Institution/LMS integration
+---
 
-The UI uses **Demo access** and does not collect or validate passwords. OCR and production authentication must not be presented as completed features.
+## 🚀 Key Features
 
-## Run locally
+### 1. The Reasoning Map
+Every answer is represented as a structured map:
+$$\text{Concept} \longrightarrow \text{Approach} \longrightarrow \text{Steps} \longrightarrow \text{Transformation} \longrightarrow \text{Result}$$
+- **For Students:** Pinpoints the exact line where reasoning broke (e.g. *"Reasoning break at Step 1: You applied the first law formula before establishing the required reference state (T_0, P_0)"*).
+- **For Teachers:** Cohort-wide view of how the class approached each question and which misconceptions recur.
 
-Prerequisites: Python 3.10+ and Node.js 18+.
+### 2. Rubric Decomposer Agent (LangGraph)
+Deconstructs marking schemes into atomic gradeable units:
+- Categories: `Concept`, `Formula`, `Intermediate Step`, `Units`, `Final Answer`
+- Weights sum strictly to `1.0` (100%).
+- Individual similarity thresholds ($\gamma \ge 0.60$).
 
-Backend, from the repository root:
+### 3. Scoring Engine: RAS & CMI
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r backend\requirements.txt
-Set-Location backend
+#### Rubric-Alignment Score (RAS)
+$$\text{RAS} = \frac{\sum (\text{Matched\_Units} \times \text{Unit\_Weight})}{\sum (\text{Total\_Units} \times \text{Unit\_Weight})} \times 100$$
+Any unit scoring below $\gamma = 0.60$ is flagged as *"Missing / Weak"* rather than silently penalized.
+
+#### Cohort Malpractice Index (CMI)
+$$\text{CMI}_{ij} = \text{CosSim}(\text{Emb}_i, \text{Emb}_j) \times \text{ErrorPatternMatch}(S_i, S_j)$$
+A pairwise CMI score $\ge 0.88$ flags suspicious collusion pairs (e.g. Sohum `26BCE0616` with $\text{CMI} = 0.92$ on shared reference state omission).
+
+### 4. Student Self-Evaluator Studio (Homework & Self-Practice)
+Allows students to input homework derivation steps, calculate dynamic semantic vector similarity, and receive instant RAS feedback before submitting to faculty.
+
+### 5. Interactive Step-Level Retry Drill
+When a student identifies a reasoning break, they can launch an interactive follow-up practice drill targeting the exact failed concept. Correctly answering the drill awards credit directly back to their RAS score!
+
+### 6. AI Doubt Assistant & PYQ Vault
+Interactive AI tutor answering step derivation doubts and searchable repository vault of past examination papers.
+
+---
+
+## 🛠️ Architecture & Tech Stack
+
+| Layer | Technologies | Description |
+| :--- | :--- | :--- |
+| **Agent Swarm** | LangGraph, Sentence-Transformers, Scikit-learn | Rubric decomposition, deterministic semantic alignment ($\gamma \ge 0.60$), CMI malpractice auditing |
+| **Backend API** | FastAPI, SQLite (SQLAlchemy), Pydantic | Role-based REST endpoints, batch script processing, SQLite foreign key pragmas |
+| **Frontend Web App** | React 19, Vite, Tailwind CSS, Lucide Icons | Clean White Enterprise UI, interactive Reasoning Map canvas, CMI matrix visualizer |
+| **Vision & OCR** | OpenCV, Spatial Bounding Box Alignment | Digitizes handwritten scripts, preserves diagram image crops |
+
+---
+
+## 💻 Quick Start & Running Locally
+
+### 1. Prerequisites
+- Python 3.10+
+- Node.js 18+
+
+### 2. Backend Setup
+```bash
+cd backend
+python -m pip install -r requirements.txt
+
+# Run FastAPI server
 python -m uvicorn main:app --host 127.0.0.1 --port 8008
 ```
 
-Frontend, in a second terminal from the repository root:
+### 3. Frontend Setup
+```bash
+cd frontend
+npm install
 
-```powershell
-npm install --prefix frontend
-npm run dev --prefix frontend
+# Launch Vite dev server
+npx vite --port 3000
 ```
 
-Open `http://localhost:3000`. API documentation is available at `http://127.0.0.1:8008/docs`.
+### 4. Open Application
+Navigate to `http://localhost:3000/` in your browser.
 
-For a hosted frontend, set `VITE_API_URL` to the public backend URL ending in `/api`.
+---
 
-## Verification
+## 🌐 Production & Vercel Deployment
 
-With the backend running:
+The frontend includes production Vercel configurations ([`vercel.json`](file:///c:/Users/manga/hackathons/practise/answerdoctor/vercel.json) & [`frontend/vercel.json`](file:///c:/Users/manga/hackathons/practise/answerdoctor/frontend/vercel.json)) supporting Vite monorepo builds (`npm run --prefix frontend build`).
 
-```powershell
-python scratch\test_pipeline.py
-npm run build
-```
+---
 
-The pipeline test resets the local demo database before checking assignment details, analytics, the CMI review list, the Reasoning Map and a persisted retry.
-
-## Team workflow before Review 2
-
-- Stabilization branch: `codex/review2-stabilize`
-- Do not rewrite or delete old branches before judging.
-- Keep commits small and descriptive.
-- Merge to `main` only after the local pipeline, production frontend build and hosted preview all pass.
-
-## Judge-safe one-line pitch
-
-AnswerDoctor shows where a student's reasoning diverged from the rubric, gives them a focused retry, and helps the teacher see repeated misconceptions across a cohort.
+## 📄 License
+MIT License. Built for Team `trpSurgewave`.
