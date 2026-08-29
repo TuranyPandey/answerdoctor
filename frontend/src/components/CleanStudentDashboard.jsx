@@ -158,7 +158,7 @@ export default function StudentDashboard({ user, onLogout }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+    <div className="readable-dashboard min-h-screen bg-gray-50 text-gray-900 font-sans">
       
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
@@ -166,9 +166,9 @@ export default function StudentDashboard({ user, onLogout }) {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-gray-900">Hi, {user.full_name || "Student Evaluator"}!</h1>
-              <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">{dataSource}</span>
+              <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">{dataSource}</span>
             </div>
-            <p className="text-xs text-gray-600 mt-0.5">Student Portal • {user.email || "student@vitstudent.ac.in"} • Reg: {user.register_number || "26BCE0616"}</p>
+            <p className="text-xs text-gray-600 mt-0.5">Student workspace • {user.email || "student@vitstudent.ac.in"} • ID: {user.register_number || "26BCE0616"}</p>
           </div>
 
           <button
@@ -190,7 +190,7 @@ export default function StudentDashboard({ user, onLogout }) {
             }`}
           >
             <FileText className="w-4 h-4" />
-            <span>My Submissions & Analysis</span>
+            <span>My Results</span>
           </button>
 
           <button
@@ -202,7 +202,7 @@ export default function StudentDashboard({ user, onLogout }) {
             }`}
           >
             <Layers className="w-4 h-4 text-purple-600" />
-            <span>Reasoning Map & Step Retries</span>
+            <span>Fix My Mistakes</span>
           </button>
 
           <button
@@ -214,7 +214,7 @@ export default function StudentDashboard({ user, onLogout }) {
             }`}
           >
             <HelpCircle className="w-4 h-4 text-emerald-600" />
-            <span>Prototype Doubt Guide</span>
+            <span>Ask Why</span>
           </button>
 
           <button
@@ -226,7 +226,7 @@ export default function StudentDashboard({ user, onLogout }) {
             }`}
           >
             <BookOpen className="w-4 h-4 text-amber-600" />
-            <span>PYQ Repository Vault</span>
+            <span>Practice Papers</span>
           </button>
         </div>
       </header>
@@ -240,10 +240,10 @@ export default function StudentDashboard({ user, onLogout }) {
             
             {/* Quick Stats Cards */}
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Your Performance</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Your Latest Result</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                  <p className="text-sm text-gray-600">Submissions</p>
+                  <p className="text-sm text-gray-600">Answers Checked</p>
                   <p className="text-3xl font-bold text-blue-600 mt-2">1</p>
                 </div>
                 
@@ -253,12 +253,12 @@ export default function StudentDashboard({ user, onLogout }) {
                 </div>
                 
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                  <p className="text-sm text-gray-600">Class Average</p>
+                  <p className="text-sm text-gray-600">Your Latest Score</p>
                   <p className="text-3xl font-bold text-purple-600 mt-2">{submission.total_ras_score.toFixed(1)}%</p>
                 </div>
                 
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                  <p className="text-sm text-gray-600">Flagged</p>
+                  <p className="text-sm text-gray-600">Teacher Reviews</p>
                   <p className="text-3xl font-bold text-red-600 mt-2">1</p>
                 </div>
               </div>
@@ -270,10 +270,10 @@ export default function StudentDashboard({ user, onLogout }) {
               {/* Visual Bar Chart: Step Similarity Scores */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-base">📊 Step-by-Step Similarity Alignment (%)</h3>
+                  <h3 className="font-bold text-gray-900 text-base">How Each Step Matched the Marking Guide</h3>
                   <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded">5 Steps Analyzed</span>
                 </div>
-                <p className="text-xs text-gray-500">Visual comparison of your derivation steps against the rubric expectation.</p>
+                <p className="text-xs text-gray-500">A step-by-step comparison with what the teacher expected.</p>
                 
                 <div className="space-y-3 pt-2">
                   {STEP_BAR_ITEMS.map((item, idx) => (
@@ -296,10 +296,10 @@ export default function StudentDashboard({ user, onLogout }) {
               {/* Visual Donut / Pie Chart: Step Competency Breakdown */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-base">🥧 Step Competency Breakdown</h3>
+                  <h3 className="font-bold text-gray-900 text-base">Steps Meeting the Marking Guide</h3>
                   <span className="text-xs font-mono font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded">80% Pass Rate</span>
                 </div>
-                <p className="text-xs text-gray-500">Proportion of Matched Steps vs Weak Conceptual Steps.</p>
+                <p className="text-xs text-gray-500">How many answer steps are complete and how many need another attempt.</p>
                 
                 <div className="flex items-center justify-around py-4">
                   {/* SVG Donut Chart */}
@@ -324,18 +324,18 @@ export default function StudentDashboard({ user, onLogout }) {
                     </svg>
                     <div className="absolute flex flex-col items-center">
                       <span className="text-xl font-bold text-gray-900">4/5</span>
-                      <span className="text-[10px] text-gray-500 font-bold uppercase">Matched</span>
+                      <span className="text-xs text-gray-500 font-bold uppercase">Complete</span>
                     </div>
                   </div>
 
                   <div className="space-y-3 text-xs font-bold">
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded bg-green-500"></div>
-                      <span className="text-gray-800">Matched Steps: 4 (80%)</span>
+                      <span className="text-gray-800">Complete Steps: 4 (80%)</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded bg-red-500"></div>
-                      <span className="text-gray-800">Weak Steps: 1 (20%)</span>
+                      <span className="text-gray-800">Steps to Fix: 1 (20%)</span>
                     </div>
                   </div>
                 </div>
@@ -349,7 +349,7 @@ export default function StudentDashboard({ user, onLogout }) {
               {/* Left: Submissions Selector */}
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-blue-600" /> My Submissions
+                  <FileText className="w-5 h-5 text-blue-600" /> My Checked Answers
                 </h2>
                 <div className="space-y-3">
                   <div className="p-4 rounded-lg border-2 border-blue-600 bg-blue-50 shadow-sm text-left">
@@ -370,7 +370,7 @@ export default function StudentDashboard({ user, onLogout }) {
               {/* Right: Submission Analysis */}
               <div className="lg:col-span-2 space-y-6">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-blue-600" /> Submission Analysis
+                  <TrendingUp className="w-5 h-5 text-blue-600" /> Detailed Result
                 </h2>
 
                 <div className="bg-white rounded-lg border border-gray-200 shadow-sm space-y-6">
@@ -378,7 +378,7 @@ export default function StudentDashboard({ user, onLogout }) {
                   {/* Score Card */}
                   <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg flex items-center justify-between">
                     <div>
-                      <p className="text-gray-600 text-sm">Overall Score (RAS)</p>
+                      <p className="text-gray-600 text-sm">Overall Reasoning Score</p>
                       <p className="text-4xl font-bold text-gray-900 mt-1">{submission.total_ras_score.toFixed(1)}%</p>
                       <p className="text-sm font-medium text-green-600 mt-2">✓ Passed</p>
                     </div>
@@ -391,7 +391,7 @@ export default function StudentDashboard({ user, onLogout }) {
                   {/* Details */}
                   <div className="px-6 grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <p className="text-xs text-gray-600">Seeded Extraction Confidence</p>
+                      <p className="text-xs text-gray-600">Demo Text-Reading Confidence</p>
                       <p className="text-lg font-semibold text-gray-900 mt-1">{(submission.ocr_confidence * 100).toFixed(1)}%</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -405,9 +405,9 @@ export default function StudentDashboard({ user, onLogout }) {
                     <div className="mx-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-medium text-red-900">Flagged for Review</p>
+                        <p className="font-medium text-red-900">Teacher Similarity Review</p>
                         <p className="text-sm text-red-700 mt-1">
-                          This submission has been flagged for potential academic integrity concerns (CMI = 0.92).
+                          Parts of this answer resemble another submission. Your teacher will compare them; this is not an automatic misconduct decision.
                         </p>
                       </div>
                     </div>
@@ -415,16 +415,16 @@ export default function StudentDashboard({ user, onLogout }) {
 
                   {/* Steps */}
                   <div className="px-6 pb-6 space-y-4">
-                    <h3 className="font-semibold text-gray-900">Step-by-Step Feedback</h3>
+                    <h3 className="font-semibold text-gray-900">Where You Gained or Lost Marks</h3>
                     <div className="space-y-3">
                       {submission.steps.map(step => (
                         <div key={step.id} className="p-4 bg-white border border-gray-200 rounded-lg space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className="font-semibold text-sm text-gray-900">Step {step.step_number}: {step.status}</span>
+                            <span className="font-semibold text-sm text-gray-900">Step {step.step_number}: {step.status === 'MATCHED' ? 'Meets the guide' : 'Needs work'}</span>
                             <span className={`px-2 py-0.5 text-xs font-bold rounded ${
                               step.status === 'MATCHED' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                             }`}>
-                              {step.status}
+                              {step.status === 'MATCHED' ? 'Complete' : 'Needs work'}
                             </span>
                           </div>
                           <p className="text-sm text-gray-600">{step.student_text}</p>
@@ -443,7 +443,7 @@ export default function StudentDashboard({ user, onLogout }) {
                               }}
                               className="mt-2 text-xs font-bold text-purple-600 hover:text-purple-800 underline flex items-center gap-1"
                             >
-                              <Sparkles className="w-3.5 h-3.5" /> Practice Step Retry Drill to recover marks
+                              <Sparkles className="w-3.5 h-3.5" /> Practise this step to recover marks
                             </button>
                           )}
                         </div>
@@ -463,11 +463,11 @@ export default function StudentDashboard({ user, onLogout }) {
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Flowchart Reasoning Map</h2>
-                <p className="text-xs text-gray-600 mt-1">Visualization highlighting broken steps vs matched reasoning logic.</p>
+                <h2 className="text-xl font-bold text-gray-900">How Your Answer Progressed</h2>
+                <p className="text-xs text-gray-600 mt-1">Follow your solution in order and see the first step that needs fixing.</p>
               </div>
               <span className="px-3 py-1 bg-purple-100 text-purple-700 font-bold text-xs rounded-full">
-                Deterministic Diagnostics
+                Checked against the marking guide
               </span>
             </div>
 
@@ -479,7 +479,7 @@ export default function StudentDashboard({ user, onLogout }) {
                   }`}>
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-bold text-gray-900 text-sm">{node.title}</h4>
-                      <span className="text-xs font-mono font-bold text-gray-600">{node.similarity_pct}% Similarity</span>
+                      <span className="text-xs font-mono font-bold text-gray-600">{node.similarity_pct}% match to guide</span>
                     </div>
 
                     <p className="text-xs font-mono text-gray-800 bg-white p-3 rounded border border-gray-200">
@@ -488,7 +488,7 @@ export default function StudentDashboard({ user, onLogout }) {
 
                     {node.has_reasoning_break && (
                       <div className="mt-3 flex items-center justify-between">
-                        <span className="text-xs font-bold text-red-700">⚠️ Reasoning Break Detected</span>
+                        <span className="text-xs font-bold text-red-700">First Step to Fix</span>
                         <button
                           onClick={() => {
                             const stepObj = submission.steps.find(s => s.step_number === node.step_number);
@@ -498,7 +498,7 @@ export default function StudentDashboard({ user, onLogout }) {
                           }}
                           className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-lg transition"
                         >
-                          Retry Step Practice
+                          Practise This Step
                         </button>
                       </div>
                     )}
@@ -520,7 +520,7 @@ export default function StudentDashboard({ user, onLogout }) {
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-[520px]">
             <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-emerald-600" /> Prototype Doubt Guide
+                <HelpCircle className="w-5 h-5 text-emerald-600" /> Ask Why This Step Lost Marks
               </h3>
             </div>
 
@@ -541,14 +541,14 @@ export default function StudentDashboard({ user, onLogout }) {
                 type="text"
                 value={doubtInput}
                 onChange={(e) => setDoubtInput(e.target.value)}
-                placeholder="Ask why Step 1 was marked weak..."
+                placeholder="Ask why this step needs work..."
                 className="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="submit"
                 className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition"
               >
-                Ask Assistant
+                Get Explanation
               </button>
             </form>
           </div>
@@ -558,7 +558,7 @@ export default function StudentDashboard({ user, onLogout }) {
         {activeTab === 'pyq' && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">PYQ Repository Vault</h2>
+              <h2 className="text-xl font-bold text-gray-900">Practice with Past Papers</h2>
             </div>
 
             <div className="space-y-4">
@@ -596,7 +596,7 @@ export default function StudentDashboard({ user, onLogout }) {
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-gray-200">
             <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-600" /> Step {retryModalStep.step_number} Practice Retry
+                <Sparkles className="w-5 h-5 text-purple-600" /> Practise Step {retryModalStep.step_number} Again
               </h3>
               <button onClick={() => setRetryModalStep(null)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />

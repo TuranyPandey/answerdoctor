@@ -113,14 +113,14 @@ export default function TeacherDashboard({ user, onLogout }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+    <div className="readable-dashboard min-h-screen bg-gray-50 text-gray-900 font-sans">
       
       {/* Top Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Welcome, {user.full_name || "Prof. Rajesh Sharma"}</h1>
-            <p className="text-xs text-gray-600 mt-0.5">Faculty Portal • {user.email || "prof.sharma@vit.ac.in"} • Department of Mechanical Engineering</p>
+            <p className="text-xs text-gray-600 mt-0.5">Teacher workspace • {user.email || "prof.sharma@vit.ac.in"} • Mechanical Engineering</p>
           </div>
 
           <button
@@ -142,7 +142,7 @@ export default function TeacherDashboard({ user, onLogout }) {
             }`}
           >
             <BarChart3 className="w-4 h-4 text-blue-600" />
-            <span>Classroom Analytics & Charts</span>
+            <span>Class Overview</span>
           </button>
 
           <button
@@ -154,7 +154,7 @@ export default function TeacherDashboard({ user, onLogout }) {
             }`}
           >
             <ShieldAlert className="w-4 h-4 text-red-600" />
-            <span>Malpractice Radar (CMI = 0.92)</span>
+            <span>Similarity Review</span>
           </button>
 
           <button
@@ -166,7 +166,7 @@ export default function TeacherDashboard({ user, onLogout }) {
             }`}
           >
             <Sparkles className="w-4 h-4 text-purple-600" />
-            <span>Auto-Evaluator & Rubric Studio</span>
+            <span>Grade an Answer</span>
           </button>
 
           <button
@@ -178,7 +178,7 @@ export default function TeacherDashboard({ user, onLogout }) {
             }`}
           >
             <BookOpen className="w-4 h-4 text-amber-600" />
-            <span>PYQ Vault Archive</span>
+            <span>Past Papers</span>
           </button>
         </div>
       </header>
@@ -191,17 +191,19 @@ export default function TeacherDashboard({ user, onLogout }) {
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                <p className="text-xs text-gray-600 uppercase font-semibold">Class Average RAS</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">Average Reasoning Score</p>
                 <p className="text-3xl font-bold text-blue-600 mt-2">74.5%</p>
+                <p className="text-xs text-gray-500 mt-1">RAS: score against the marking guide</p>
               </div>
               
               <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                <p className="text-xs text-gray-600 uppercase font-semibold">Seeded Scenario Size</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">240 Simulated Scripts</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">Demo Class Size</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">240 Simulated Answers</p>
+                <p className="text-xs text-gray-500 mt-1">Illustrative cohort, not uploaded scripts</p>
               </div>
               
               <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                <p className="text-xs text-gray-600 uppercase font-semibold">Flagged Collusion Pairs</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">Similar Answers to Review</p>
                 <p className="text-3xl font-bold text-red-600 mt-2">1 Pair</p>
               </div>
             </div>
@@ -212,10 +214,10 @@ export default function TeacherDashboard({ user, onLogout }) {
               {/* Bar Chart: Rubric Unit Pass Rates */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-base">📊 Rubric Unit Pass Rates (%)</h3>
+                  <h3 className="font-bold text-gray-900 text-base">Where Students Lost Marks</h3>
                   <span className="text-xs font-mono font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded">74.5% Class Avg</span>
                 </div>
-                <p className="text-xs text-gray-500">Cohort mastery percentage across all 5 rubric concept units.</p>
+                <p className="text-xs text-gray-500">Percentage of the demo class meeting each part of the marking guide.</p>
                 
                 <div className="space-y-3 pt-2">
                   {RUBRIC_BAR_ITEMS.map((item, idx) => (
@@ -238,7 +240,7 @@ export default function TeacherDashboard({ user, onLogout }) {
               {/* Pie Chart / Donut Chart: Cohort Performance Breakdown */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-base">🥧 Simulated Cohort Score Distribution</h3>
+                  <h3 className="font-bold text-gray-900 text-base">Demo Class Score Distribution</h3>
                   <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded">Seeded scenario</span>
                 </div>
                 <p className="text-xs text-gray-500">Breakdown of student cohort by performance brackets.</p>
@@ -253,7 +255,7 @@ export default function TeacherDashboard({ user, onLogout }) {
                     </svg>
                     <div className="absolute flex flex-col items-center">
                       <span className="text-xl font-bold text-gray-900">240</span>
-                      <span className="text-[10px] text-gray-500 font-bold uppercase">Total</span>
+                      <span className="text-xs text-gray-500 font-bold uppercase">Total</span>
                     </div>
                   </div>
 
@@ -278,7 +280,7 @@ export default function TeacherDashboard({ user, onLogout }) {
 
             {/* Error Misconception Clusters */}
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
-              <h3 className="font-bold text-gray-900 text-base">Class Error Misconception Clusters</h3>
+              <h3 className="font-bold text-gray-900 text-base">Common Class Mistakes</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {FALLBACK_ANALYTICS.error_clusters.map(c => (
                   <div key={c.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
@@ -299,16 +301,16 @@ export default function TeacherDashboard({ user, onLogout }) {
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Malpractice & Collusion Audit Radar</h2>
-                <p className="text-xs text-gray-600 mt-1">Evaluates Cohort Malpractice Index (CMI = CosSim × Shared Error Pattern Match).</p>
+                <h2 className="text-xl font-bold text-gray-900">Answers Needing a Similarity Check</h2>
+                <p className="text-xs text-gray-600 mt-1">Highlights unusually similar wording and shared mistakes for a teacher to review. It never makes an automatic accusation.</p>
               </div>
               <span className="px-3 py-1 bg-red-100 text-red-700 font-bold text-xs rounded-full">
-                CMI Threshold: 0.88
+                Review threshold: 0.88 CMI
               </span>
             </div>
 
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
-              <h3 className="font-bold text-gray-900 text-base">Flagged Suspicious Similarity Pair</h3>
+              <h3 className="font-bold text-gray-900 text-base">Possible Similarity Match</h3>
               {FALLBACK_MALPRACTICE.collusion_pairs.map(pair => (
                 <div key={pair.id} className="p-5 bg-red-50 border border-red-200 rounded-lg space-y-2">
                   <div className="flex items-center justify-between">
@@ -333,7 +335,7 @@ export default function TeacherDashboard({ user, onLogout }) {
             {/* Create Custom Rubric Form */}
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
               <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-600" /> Decompose Rubric into Atomic Units
+                <Sparkles className="w-5 h-5 text-purple-600" /> Create a Marking Guide
               </h3>
               
               <form onSubmit={handleCreateRubric} className="space-y-3 text-xs">
@@ -350,7 +352,7 @@ export default function TeacherDashboard({ user, onLogout }) {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Raw Answer Key / Marking Scheme</label>
+                  <label className="block font-bold text-gray-700 mb-1">Expected Answer / Marking Scheme</label>
                   <textarea
                     rows={4}
                     value={assKeyText}
@@ -366,7 +368,7 @@ export default function TeacherDashboard({ user, onLogout }) {
                   disabled={actionBusy}
                   className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition disabled:opacity-50"
                 >
-                  {actionBusy ? 'Saving…' : 'Decompose Rubric & Save Assignment'}
+                  {actionBusy ? 'Saving…' : 'Create and Save Marking Guide'}
                 </button>
               </form>
 
@@ -380,7 +382,7 @@ export default function TeacherDashboard({ user, onLogout }) {
             {/* Test Custom Student Derivation Form */}
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
               <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                <Send className="w-5 h-5 text-blue-600" /> Evaluate Custom Student Derivation
+                <Send className="w-5 h-5 text-blue-600" /> Check a Student Answer
               </h3>
 
               <form onSubmit={handleEvaluateCustomScript} className="space-y-3 text-xs">
@@ -410,7 +412,7 @@ export default function TeacherDashboard({ user, onLogout }) {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Step 1 Derivation</label>
+                  <label className="block font-bold text-gray-700 mb-1">Answer Step 1</label>
                   <input
                     type="text"
                     value={step1Text}
@@ -422,7 +424,7 @@ export default function TeacherDashboard({ user, onLogout }) {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Step 2 Derivation</label>
+                  <label className="block font-bold text-gray-700 mb-1">Answer Step 2</label>
                   <input
                     type="text"
                     value={step2Text}
@@ -438,7 +440,7 @@ export default function TeacherDashboard({ user, onLogout }) {
                   disabled={actionBusy}
                   className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition disabled:opacity-50"
                 >
-                  {actionBusy ? 'Evaluating…' : `Evaluate against rubric ${assignmentId} & compute RAS`}
+                  {actionBusy ? 'Checking…' : `Check Answer with Marking Guide ${assignmentId}`}
                 </button>
               </form>
 
@@ -450,12 +452,12 @@ export default function TeacherDashboard({ user, onLogout }) {
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2 text-xs">
                   <div className="flex justify-between font-bold text-blue-900">
                     <span>{evalResult.student_name} ({evalResult.register_number})</span>
-                    <span>RAS Score: {evalResult.total_ras_score}%</span>
+                    <span>Overall Score: {evalResult.total_ras_score}%</span>
                   </div>
                   <p className="text-green-700 font-bold">Saved as submission {evalResult.submission_id}. Result returned by FastAPI.</p>
                   <div className="space-y-1">
                     {evalResult.steps.map((step) => (
-                      <p key={step.id} className="text-gray-700">Step {step.step_number}: {step.status} ({Math.round(step.similarity_score * 100)}% similarity)</p>
+                      <p key={step.id} className="text-gray-700">Step {step.step_number}: {step.status === 'MATCHED' ? 'Meets the guide' : 'Needs review'} ({Math.round(step.similarity_score * 100)}% match)</p>
                     ))}
                   </div>
                 </div>
@@ -468,8 +470,8 @@ export default function TeacherDashboard({ user, onLogout }) {
         {/* TAB 4: PYQ VAULT */}
         {activeTab === 'pyq' && (
           <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-gray-900 text-lg">PYQ Repository Vault</h3>
-            <p className="text-xs text-gray-600">Past year examination papers and atomic marking schemes categorized for faculty review.</p>
+            <h3 className="font-bold text-gray-900 text-lg">Past Paper Library</h3>
+            <p className="text-xs text-gray-600">Previous examination questions and their marking guides, organized for teachers.</p>
             <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg font-mono text-xs text-gray-800">
               Applied Thermodynamics 2025 FAT • Multivariable Calculus 2025 CAT-1 • DSA 2024 CAT-2
             </div>

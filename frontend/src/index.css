@@ -14,6 +14,13 @@
   }
 }
 
+@layer components {
+  .readable-dashboard .text-xs {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+}
+
 /* Glassmorphism Cards */
 .glass-panel {
   background: rgba(15, 23, 42, 0.75);
