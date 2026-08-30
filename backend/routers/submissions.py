@@ -9,7 +9,7 @@ from services.malpractice_radar import compute_cmi
 from pydantic import BaseModel
 from typing import Optional, List
 from security import get_current_user
-from services.document_ingestion import extract_pdf_text, split_question_blocks
+from services.document_ingestion import extract_pdf_text, extract_student_identity, split_question_blocks
 
 router = APIRouter(prefix="/api/submissions", tags=["Submissions"])
 
@@ -65,23 +65,32 @@ async def upload_answer_sheet(
     assignment = _assignment_for_user(assignment_id, current_user, db)
     if file.content_type not in ("application/pdf", "application/x-pdf"):
         raise HTTPException(status_code=415, detail="Upload a PDF answer sheet")
+    try:
+        extracted = extract_pdf_text(await file.read())
+        identity = extract_student_identity(extracted.text)
+        blocks = split_question_blocks(extracted.text)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     if current_user.role == "student":
         student = current_user
     else:
-        normalized_reg = (register_number or "").strip().upper()
+        normalized_reg = (identity.register_number or register_number or "").strip().upper()
+        if not normalized_reg:
+            raise HTTPException(
+                status_code=422,
+                detail="Could not read the registration number. Add a clear 'Registration Number:' header to the answer sheet.",
+            )
         student = db.query(User).filter(User.register_number == normalized_reg, User.role == "student").first()
         if not student:
-            raise HTTPException(status_code=404, detail="Choose a registered student from this class")
+            raise HTTPException(
+                status_code=404,
+                detail=f"OCR read registration number {normalized_reg}, but it does not match a registered student.",
+            )
         enrolled = db.query(ClassroomStudent).filter(
             ClassroomStudent.classroom_id == assignment.classroom_id,
             ClassroomStudent.student_id == student.id).first()
         if not enrolled:
-            raise HTTPException(status_code=403, detail="That student is not enrolled in this class")
-    try:
-        extracted = extract_pdf_text(await file.read())
-        blocks = split_question_blocks(extracted.text)
-    except ValueError as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
+            raise HTTPException(status_code=403, detail="The student identified on this sheet is not enrolled in this class")
     request = DynamicEvaluateSubmissionRequest(
         assignment_id=assignment_id,
         student_name=student.full_name if student else (student_name or "Student"),
@@ -113,6 +122,8 @@ async def upload_answer_sheet(
         "marking_guide_document_id": guide.id if guide else None,
         "extraction_method": extracted.extraction_method,
         "ocr_confidence": extracted.confidence,
+        "ocr_student_name": identity.student_name or student.full_name,
+        "ocr_register_number": identity.register_number or student.register_number,
         "questions_detected": [block["label"] for block in blocks],
     })
     return result

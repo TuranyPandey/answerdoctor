@@ -24,6 +24,7 @@ from routers.auth import RegisterRequest, register
 from routers.classrooms import ClassroomCreate, JoinClassroom, create_classroom, join_classroom
 from routers.documents import get_document
 from routers.submissions import upload_answer_sheet
+from services.document_ingestion import extract_student_identity, split_question_blocks
 
 
 def pdf_with_embedded_text(lines: list[str]) -> bytes:
@@ -61,6 +62,16 @@ def pdf_upload(filename: str, content: bytes) -> UploadFile:
 
 
 async def run_flow():
+    regression_blocks = split_question_blocks(
+        "Name: PDF Student\nRegistration Number: OCR001\n"
+        "Q1. Establish T_0 = 298.15 K and P_0 = 1 atm.\n"
+        "0. This OCR artefact must not become a question.\nQ2. Apply the balance."
+    )
+    assert [block["label"] for block in regression_blocks] == ["Q1", "Q2"]
+    identity = extract_student_identity("Name: PDF Student\nReg No: OCR001\nQ1. Answer")
+    assert identity.student_name == "PDF Student"
+    assert identity.register_number == "OCR001"
+
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
@@ -94,16 +105,20 @@ async def run_flow():
         answer = await upload_answer_sheet(
             assignment_id=guide["id"],
             file=pdf_upload("scan.pdf", image_only_pdf([
+                "Name: PDF Student",
+                "Registration Number: OCR001",
                 "Q1. Force equals mass times acceleration.",
                 "Q2. Acceleration equals force divided by mass.",
             ])),
-            student_name=student.full_name,
-            register_number=student.register_number,
+            student_name=None,
+            register_number=None,
             db=db, current_user=teacher,
         )
         assert answer["extraction_method"] == "ocr"
         assert answer["ocr_confidence"] > 0
         assert answer["questions_detected"] == ["Q1", "Q2"]
+        assert answer["ocr_student_name"] == "PDF Student"
+        assert answer["ocr_register_number"] == "OCR001"
 
         document = get_document(answer["answer_document_id"], db, student)
         assert document["document_type"] == "answer_sheet"

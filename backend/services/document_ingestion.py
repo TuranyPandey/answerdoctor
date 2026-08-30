@@ -16,6 +16,12 @@ class ExtractedDocument:
     confidence: float
 
 
+@dataclass
+class ExtractedIdentity:
+    student_name: str | None
+    register_number: str | None
+
+
 def _meaningful_character_count(text: str) -> int:
     return len(re.findall(r"[A-Za-z0-9]", text or ""))
 
@@ -91,8 +97,31 @@ def extract_pdf_text(content: bytes) -> ExtractedDocument:
 
 
 QUESTION_HEADING = re.compile(
-    r"(?im)^\s*(?:(?:question|ques(?:tion)?|q)\s*)?(\d{1,3}[a-z]?)\s*[\).:\-]\s*(.*)$"
+    r"(?im)^\s*(?:"
+    r"(?:question|ques(?:tion)?|q)\s*[.:#\-]?\s*([1-9]\d{0,2}[a-z]?)\s*[\).:\-]?"
+    r"|([1-9]\d{0,2}[a-z]?)\s*[\).:\-]"
+    r")(?:\s+(.*))?$"
 )
+
+NAME_FIELD = re.compile(
+    r"(?im)^\s*(?:student\s+)?name\s*[:\-]\s*"
+    r"([a-z][a-z .'-]{1,79})\s*$"
+)
+REGISTER_FIELD = re.compile(
+    r"(?im)^\s*(?:(?:registration|register|reg(?:istration)?|roll)\s*"
+    r"(?:number|no\.?|#)?)\s*[:\-]?\s*"
+    r"([a-z0-9][a-z0-9/_\-]{2,29})\s*$"
+)
+
+
+def extract_student_identity(text: str) -> ExtractedIdentity:
+    """Read labelled student identity fields from an OCR/embedded-text header."""
+    header = "\n".join((text or "").replace("\r", "\n").splitlines()[:20])
+    name_match = NAME_FIELD.search(header)
+    register_match = REGISTER_FIELD.search(header)
+    name = re.sub(r"\s+", " ", name_match.group(1)).strip(" .-") if name_match else None
+    register_number = register_match.group(1).strip().upper() if register_match else None
+    return ExtractedIdentity(student_name=name or None, register_number=register_number or None)
 
 
 def split_question_blocks(text: str) -> list[dict]:
@@ -107,7 +136,7 @@ def split_question_blocks(text: str) -> list[dict]:
         start = match.start()
         end = matches[index + 1].start() if index + 1 < len(matches) else len(clean_text)
         block_text = clean_text[start:end].strip()
-        number = match.group(1).upper()
+        number = (match.group(1) or match.group(2)).upper()
         if block_text:
             blocks.append({
                 "question_number": number,

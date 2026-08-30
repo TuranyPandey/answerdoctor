@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   LogOut, Users, BookOpen, BarChart3, ShieldAlert, 
-  Sparkles, Send, FileText, CheckCircle, Search, Grid, UploadCloud, Plus, Copy
+  Sparkles, Send, FileText, CheckCircle, Search, Grid, UploadCloud, Plus, Copy, Check
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { apiFetch } from '../apiConfig';
@@ -16,16 +16,11 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
   const [evalMsg, setEvalMsg] = useState('');
 
   // Custom Student Evaluation Form
-  const [studentName, setStudentName] = useState('');
-  const [regNo, setRegNo] = useState('');
-  const [step1Text, setStep1Text] = useState('');
-  const [step2Text, setStep2Text] = useState('');
   const [evalResult, setEvalResult] = useState(null);
   const [assignmentId, setAssignmentId] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
   const [classroom, setClassroom] = useState(null);
-  const [roster, setRoster] = useState([]);
   const [newClassName, setNewClassName] = useState('');
   const [newClassSubject, setNewClassSubject] = useState('');
   const [guideFile, setGuideFile] = useState(null);
@@ -34,6 +29,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
   const [malpractice, setMalpractice] = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [codeCopied, setCodeCopied] = useState(false);
 
   useEffect(() => {
     const loadWorkspace = async () => {
@@ -51,17 +47,13 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
   useEffect(() => {
     const loadClass = async () => {
       if (!classroom?.id) {
-        setAssignments([]); setAssignmentId(null); setRoster([]); return;
+        setAssignments([]); setAssignmentId(null); return;
       }
       try {
-        const [assignmentResponse, rosterResponse] = await Promise.all([
-          apiFetch(`/assignments/classroom/${classroom.id}`),
-          apiFetch(`/classrooms/${classroom.id}/students`),
-        ]);
-        if (!assignmentResponse.ok || !rosterResponse.ok) throw new Error('Could not load class');
+        const assignmentResponse = await apiFetch(`/assignments/classroom/${classroom.id}`);
+        if (!assignmentResponse.ok) throw new Error('Could not load class');
         const savedAssignments = await assignmentResponse.json();
         setAssignments(savedAssignments);
-        setRoster(await rosterResponse.json());
         setAssignmentId(savedAssignments[0]?.id || null);
       } catch { setActionError('Could not load this class workspace.'); }
     };
@@ -92,6 +84,13 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
   };
 
   useEffect(() => { refreshReports(assignmentId).catch(() => setActionError('Could not load assignment reports.')); }, [assignmentId]);
+
+  const copyClassCode = async () => {
+    if (!classroom?.code) return;
+    await navigator.clipboard.writeText(classroom.code);
+    setCodeCopied(true);
+    window.setTimeout(() => setCodeCopied(false), 1600);
+  };
 
   const handleCreateRubric = async (e) => {
     e.preventDefault();
@@ -131,23 +130,18 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
     setActionError('');
     setEvalResult(null);
     try {
-      let response;
-      if (answerFile) {
-        const form = new FormData(); form.append('assignment_id', assignmentId); form.append('file', answerFile);
-        form.append('student_name', studentName); form.append('register_number', regNo);
-        response = await apiFetch('/submissions/upload', { method: 'POST', body: form });
-      } else {
-        response = await apiFetch('/submissions/evaluate', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ assignment_id: assignmentId, student_name: studentName, register_number: regNo,
-            steps: [{ step_number: 1, student_text: step1Text, has_diagram: false },
-              { step_number: 2, student_text: step2Text || 'Q - W = delta U', has_diagram: false }] }) });
+      if (!answerFile) throw new Error('Choose an answer-sheet PDF first.');
+      const form = new FormData(); form.append('assignment_id', assignmentId); form.append('file', answerFile);
+      const response = await apiFetch('/submissions/upload', { method: 'POST', body: form });
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        throw new Error(errorBody?.detail || 'The answer sheet could not be processed.');
       }
-      if (!response.ok) throw new Error(await response.text());
       setEvalResult(await response.json());
       setAnswerFile(null);
       await refreshReports(assignmentId);
     } catch (error) {
-      setActionError('Evaluation failed. Confirm the backend is running and the selected assignment has rubric units.');
+      setActionError(error.message || 'The answer sheet could not be processed.');
     } finally {
       setActionBusy(false);
     }
@@ -242,7 +236,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
               {assignments.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
             </select>
           </label>
-          {classroom && <button type="button" onClick={() => navigator.clipboard?.writeText(classroom.code)} className="flex items-center justify-center gap-2 rounded-lg bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700"><Copy size={15} /> Code {classroom.code}</button>}
+          {classroom && <button type="button" onClick={copyClassCode} title={codeCopied ? 'Copied!' : 'Copy class code'} aria-live="polite" className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all duration-200 ${codeCopied ? 'scale-105 bg-green-100 text-green-700 shadow-sm' : 'bg-blue-50 text-blue-700 hover:-translate-y-0.5 hover:shadow-sm'}`}>{codeCopied ? <><Check size={15} /> Copied!</> : <><Copy size={15} /> Code {classroom.code}</>}</button>}
         </div>
         
         {/* TAB 1: CLASSROOM ANALYTICS & CHARTS */}
@@ -469,82 +463,29 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
               )}
             </div>
 
-            {/* Test Custom Student Derivation Form */}
+            {/* OCR-first student answer upload */}
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm space-y-4">
               <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
                 <Send className="w-5 h-5 text-blue-600" /> Check a Student Answer
               </h3>
 
               <form onSubmit={handleEvaluateCustomScript} className="space-y-3 text-xs">
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Enrolled student</label>
-                  <select onChange={e => { const selected = roster.find(item => item.id === Number(e.target.value)); if (selected) { setStudentName(selected.full_name); setRegNo(selected.register_number || ''); } }} className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900">
-                    <option value="">Select from {roster.length} enrolled students</option>
-                    {roster.map(item => <option key={item.id} value={item.id}>{item.full_name} · {item.register_number}</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-gray-700 mb-1">Student Name</label>
-                    <input
-                      type="text"
-                      value={studentName}
-                      onChange={(e) => setStudentName(e.target.value)}
-                      placeholder="Ananya Sharma"
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-gray-700 mb-1">Reg Number</label>
-                    <input
-                      type="text"
-                      value={regNo}
-                      onChange={(e) => setRegNo(e.target.value)}
-                      placeholder="26BCE0888"
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Answer Step 1</label>
-                  <input
-                    type="text"
-                    value={step1Text}
-                    onChange={(e) => setStep1Text(e.target.value)}
-                    placeholder="State reference conditions T_0 = 298.15 K."
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-gray-900 focus:outline-none"
-                    required={!answerFile}
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Answer Step 2</label>
-                  <input
-                    type="text"
-                    value={step2Text}
-                    onChange={(e) => setStep2Text(e.target.value)}
-                    placeholder="Q - W = delta U"
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-gray-900 focus:outline-none"
-                    required={!answerFile}
-                  />
-                </div>
-
                 <label className="block cursor-pointer rounded-lg border-2 border-dashed border-blue-200 bg-blue-50 p-4 text-center font-bold text-blue-800">
                   <UploadCloud className="mx-auto mb-2" size={22} />
                   {answerFile ? answerFile.name : 'Upload student answer-sheet PDF'}
                   <input type="file" accept="application/pdf,.pdf" onChange={e => setAnswerFile(e.target.files?.[0] || null)} className="sr-only" />
                 </label>
-                <p className="text-[11px] text-gray-500">Answer blocks labelled Q1/Q2/Q3 are paired with the same blocks in the selected marking guide before rubric analysis.</p>
+                <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-blue-900">
+                  <p className="font-bold">No student fields to fill.</p>
+                  <p className="mt-1 text-[11px]">OCR reads <strong>Name</strong>, <strong>Registration Number</strong>, and Q1/Q2/Q3 headings directly from the sheet, then matches the student to this class.</p>
+                </div>
 
                 <button
                   type="submit"
-                  disabled={actionBusy || !assignmentId}
+                  disabled={actionBusy || !assignmentId || !answerFile}
                   className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition disabled:opacity-50"
                 >
-                  {actionBusy ? 'Checking…' : assignmentId ? `Check Answer with Marking Guide ${assignmentId}` : 'Create or select a marking guide first'}
+                  {actionBusy ? 'Reading and checking…' : assignmentId ? `OCR and Check Answer · Guide ${assignmentId}` : 'Create or select a marking guide first'}
                 </button>
               </form>
 
@@ -559,6 +500,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
                     <span>Overall Score: {evalResult.total_ras_score}%</span>
                   </div>
                   <p className="text-green-700 font-bold">Saved as submission {evalResult.submission_id}. Result returned by FastAPI.</p>
+                  <p className="text-blue-800">OCR identity: {evalResult.ocr_student_name} · {evalResult.ocr_register_number}</p>
                   <div className="space-y-1">
                     {evalResult.steps.map((step) => (
                       <p key={step.id} className="text-gray-700">Step {step.step_number}: {step.status === 'MATCHED' ? 'Meets the guide' : 'Needs review'} ({Math.round(step.similarity_score * 100)}% match)</p>
