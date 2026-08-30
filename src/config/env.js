@@ -1,6 +1,6 @@
 // Central config — ALL env vars are read here and nowhere else
 const env = {
-  apiUrl: import.meta.env.VITE_API_URL || '/api',
+  apiUrl: import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '/api',
   googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
   geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
   simulationMode: import.meta.env.VITE_SIMULATION_MODE === 'true',

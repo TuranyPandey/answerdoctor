@@ -25,6 +25,10 @@ import ReasoningTrajectory from './components/Student/ReasoningTrajectory';
 import PredictiveRiskRadar from './components/Teacher/PredictiveRiskRadar';
 import GradingConsensus from './components/Teacher/GradingConsensus';
 
+// Remote repo UI (sohum123451/answerdoctor original frontend)
+import CleanTeacherDashboard from './components/Remote/CleanTeacherDashboard';
+import CleanStudentDashboard from './components/Remote/CleanStudentDashboard';
+
 import { fetchMe } from './services/api';
 
 function MainApp() {
@@ -35,6 +39,9 @@ function MainApp() {
   const [retryContext, setRetryContext] = useState(null);
   const [loading, setLoading] = useState(true);
   const [themeChoice, setThemeChoice] = useState(() => localStorage.getItem('theme_choice') || 'classic');
+  // 'remote' theme = use original sohum123451/answerdoctor clean UI
+  const isRemoteUI = themeChoice === 'remote';
+  const [remoteTheme, setRemoteTheme] = useState('dark');
 
   useEffect(() => {
     localStorage.setItem('theme_choice', themeChoice);
@@ -45,6 +52,8 @@ function MainApp() {
       root.classList.add('theme-modern', 'dark');
     } else if (themeChoice === 'modern-light') {
       root.classList.add('theme-modern', 'light');
+    } else if (themeChoice === 'remote') {
+      root.classList.add('theme-modern', 'dark');
     } else {
       root.classList.add('theme-classic');
     }
@@ -107,14 +116,56 @@ function MainApp() {
             value={themeChoice}
             onChange={(e) => setThemeChoice(e.target.value)}
             className="form-input text-xs"
-            style={{ padding: '6px 12px', borderRadius: themeChoice.startsWith('modern') ? '8px' : '0px' }}
+            style={{ padding: '6px 12px', borderRadius: themeChoice.startsWith('modern') || themeChoice === 'remote' ? '8px' : '0px' }}
           >
             <option value="classic">⚡ Classic Technical UI</option>
             <option value="modern-dark">✨ Modern Vercel Glass (Dark)</option>
             <option value="modern-light">☀️ Modern Vercel Glass (Light)</option>
+            <option value="remote">🎨 Original AnswerDoctor UI</option>
           </select>
         </div>
         <LoginPage onLoginSuccess={handleLoginSuccess} />
+      </div>
+    );
+  }
+
+  // When 'Original AnswerDoctor UI' is selected, render the remote clean dashboards
+  if (isRemoteUI && user) {
+    const handleRemoteLogout = () => {
+      setThemeChoice('classic');
+      handleLogout();
+    };
+    const toggleRemoteTheme = () => setRemoteTheme(t => t === 'dark' ? 'light' : 'dark');
+    return (
+      <div style={{ position: 'relative' }}>
+        {/* UI switcher button always visible */}
+        <button
+          onClick={() => setThemeChoice('classic')}
+          style={{
+            position: 'fixed', top: '12px', right: '12px', zIndex: 9999,
+            background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px',
+            color: '#fff', padding: '6px 14px', fontSize: '12px', cursor: 'pointer',
+          }}
+          title="Switch to Advanced AnswerDoctor UI"
+        >
+          ⚡ Switch to Advanced UI
+        </button>
+        {user.role === 'teacher' ? (
+          <CleanTeacherDashboard
+            user={user}
+            onLogout={handleRemoteLogout}
+            theme={remoteTheme}
+            onToggleTheme={toggleRemoteTheme}
+          />
+        ) : (
+          <CleanStudentDashboard
+            user={user}
+            onLogout={handleRemoteLogout}
+            theme={remoteTheme}
+            onToggleTheme={toggleRemoteTheme}
+          />
+        )}
       </div>
     );
   }

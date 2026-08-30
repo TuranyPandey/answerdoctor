@@ -14,5 +14,12 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+  },
+  define: {
+    // Expose env vars to the app
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+  },
 })
-
