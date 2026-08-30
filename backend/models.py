@@ -1,143 +1,204 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, Text, DateTime
-from sqlalchemy.orm import relationship
+import uuid
 from datetime import datetime
+from sqlalchemy import (
+    Column, String, Float, Integer, Boolean, DateTime, Text,
+    ForeignKey, Enum as SAEnum
+)
+from sqlalchemy.orm import relationship
 from database import Base
+
+def gen_id():
+    return str(uuid.uuid4())
 
 class User(Base):
     __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    full_name = Column(String)
-    register_number = Column(String, nullable=True)
-    role = Column(String, default="student") # 'teacher' or 'student'
-    avatar_url = Column(String, nullable=True)
-    google_id = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id            = Column(String, primary_key=True, default=gen_id)
+    email         = Column(String, unique=True, nullable=False, index=True)
+    name          = Column(String, nullable=False)
+    hashed_password = Column(String, nullable=True)   # null for Google-only users
+    google_id     = Column(String, nullable=True, unique=True)
+    role          = Column(SAEnum("teacher", "student", name="role_enum"), nullable=False)
+    avatar_url    = Column(String, nullable=True)
+    is_verified   = Column(Boolean, default=False)
+    verification_status = Column(String, default="Standard Account")
+    institution   = Column(String, nullable=True)
+    created_at    = Column(DateTime, default=datetime.utcnow)
 
-class Classroom(Base):
-    __tablename__ = "classrooms"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-    subject = Column(String)
-    code = Column(String, unique=True, index=True)
-    teacher_id = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    taught_classes  = relationship("Class", back_populates="teacher", foreign_keys="Class.teacher_id")
+    enrollments     = relationship("Enrollment", back_populates="student")
+    scripts         = relationship("Script", back_populates="student")
 
-    teacher = relationship("User", foreign_keys=[teacher_id])
 
-class ClassroomStudent(Base):
-    __tablename__ = "classroom_students"
-    id = Column(Integer, primary_key=True, index=True)
-    classroom_id = Column(Integer, ForeignKey("classrooms.id"))
-    student_id = Column(Integer, ForeignKey("users.id"))
+class Class(Base):
+    __tablename__ = "classes"
+    id          = Column(String, primary_key=True, default=gen_id)
+    name        = Column(String, nullable=False)
+    subject     = Column(String, nullable=False)
+    join_code   = Column(String, unique=True, nullable=False, index=True)
+    teacher_id  = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at  = Column(DateTime, default=datetime.utcnow)
 
-class Assignment(Base):
-    __tablename__ = "assignments"
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String)
-    subject = Column(String)
-    exam_type = Column(String, default="CAT-1") # 'CAT-1', 'CAT-2', 'FAT'
-    year = Column(Integer, default=2026)
-    classroom_id = Column(Integer, ForeignKey("classrooms.id"), nullable=True)
-    answer_key_text = Column(Text)
-    total_marks = Column(Float, default=100.0)
-    total_scripts = Column(Integer, default=0)
-    status = Column(String, default="GRADED") # 'PROCESSING', 'GRADED'
-    created_at = Column(DateTime, default=datetime.utcnow)
+    teacher     = relationship("User", back_populates="taught_classes", foreign_keys=[teacher_id])
+    enrollments = relationship("Enrollment", back_populates="class_", cascade="all, delete-orphan")
+    rubric_units = relationship("RubricUnit", back_populates="class_", cascade="all, delete-orphan", order_by="RubricUnit.order")
+    scripts     = relationship("Script", back_populates="class_")
+    assignments = relationship("Assignment", back_populates="class_", cascade="all, delete-orphan")
 
-    rubric_units = relationship("RubricUnit", back_populates="assignment", cascade="all, delete-orphan")
-    submissions = relationship("Submission", back_populates="assignment", cascade="all, delete-orphan")
-    classroom = relationship("Classroom")
+
+class Enrollment(Base):
+    __tablename__ = "enrollments"
+    id         = Column(String, primary_key=True, default=gen_id)
+    student_id = Column(String, ForeignKey("users.id"), nullable=False)
+    class_id   = Column(String, ForeignKey("classes.id"), nullable=False)
+    joined_at  = Column(DateTime, default=datetime.utcnow)
+
+    student    = relationship("User", back_populates="enrollments")
+    class_     = relationship("Class", back_populates="enrollments")
+
 
 class RubricUnit(Base):
     __tablename__ = "rubric_units"
-    id = Column(Integer, primary_key=True, index=True)
-    assignment_id = Column(Integer, ForeignKey("assignments.id"))
-    category = Column(String) # 'concept', 'formula', 'intermediate_step', 'units', 'final_answer'
-    label = Column(String)
-    expected_text = Column(Text)
-    weight = Column(Float) # sum of weights = 1.0
-    gamma_threshold = Column(Float, default=0.60)
+    id       = Column(String, primary_key=True, default=gen_id)
+    class_id = Column(String, ForeignKey("classes.id"), nullable=False)
+    type     = Column(SAEnum("Concept", "Formula", "Step", "Transformation", "Result", name="rubric_type_enum"), nullable=False)
+    label    = Column(String, nullable=False)
+    weight   = Column(Float, default=1.0)
+    order    = Column(Integer, default=0)
 
-    assignment = relationship("Assignment", back_populates="rubric_units")
+    class_   = relationship("Class", back_populates="rubric_units")
+    grading_steps = relationship("GradingStep", back_populates="rubric_unit")
 
-class Submission(Base):
-    __tablename__ = "submissions"
-    id = Column(Integer, primary_key=True, index=True)
-    assignment_id = Column(Integer, ForeignKey("assignments.id"))
-    student_id = Column(Integer, ForeignKey("users.id"))
-    student_name = Column(String)
-    register_number = Column(String)
-    script_image_url = Column(String, nullable=True)
-    raw_script_text = Column(Text, nullable=True)
-    total_ras_score = Column(Float, default=0.0) # 0.0 to 100.0
-    ocr_confidence = Column(Float, default=0.95)
-    is_collusion_flagged = Column(Boolean, default=False)
-    submission_time = Column(DateTime, default=datetime.utcnow)
 
-    assignment = relationship("Assignment", back_populates="submissions")
-    steps = relationship("SubmissionStep", back_populates="submission", cascade="all, delete-orphan")
+class Script(Base):
+    __tablename__ = "scripts"
+    id             = Column(String, primary_key=True, default=gen_id)
+    student_id     = Column(String, ForeignKey("users.id"), nullable=False)
+    class_id       = Column(String, ForeignKey("classes.id"), nullable=False)
+    exam_name      = Column(String, nullable=False)
+    file_path      = Column(String, nullable=True)
+    ocr_text       = Column(Text, nullable=True)
+    ocr_confidence = Column(Float, nullable=True)
+    low_confidence = Column(Boolean, default=False)
+    total_marks    = Column(Float, nullable=True)
+    scored_marks   = Column(Float, nullable=True)
+    ras            = Column(Float, nullable=True)
+    cvr            = Column(Float, nullable=True) # Concept Verification Rate (0-1)
+    clarity_score  = Column(Float, nullable=True) # Image & OCR legibility (0-100)
+    overall_correctness = Column(String, nullable=True) # "Fully Correct" | "Partially Correct" | "Incorrect"
+    overall_feedback = Column(Text, nullable=True)     # Holistic AI feedback on entire paper
+    status         = Column(SAEnum("pending", "ocr", "grading", "done", "error", name="script_status_enum"), default="pending")
+    error_message  = Column(String, nullable=True)
+    uploaded_at    = Column(DateTime, default=datetime.utcnow)
 
-class SubmissionStep(Base):
-    __tablename__ = "submission_steps"
-    id = Column(Integer, primary_key=True, index=True)
-    submission_id = Column(Integer, ForeignKey("submissions.id"))
-    step_number = Column(Integer)
-    student_text = Column(Text)
-    has_diagram = Column(Boolean, default=False)
-    diagram_url = Column(String, nullable=True)
-    rubric_unit_id = Column(Integer, ForeignKey("rubric_units.id"), nullable=True)
-    similarity_score = Column(Float, default=0.0) # gamma value
-    status = Column(String) # 'MATCHED', 'WEAK', 'MISSING'
-    diagnosis_text = Column(Text, nullable=True)
-    retry_status = Column(String, default="NOT_ATTEMPTED") # 'NOT_ATTEMPTED', 'PASSED', 'FAILED'
-    retry_attempts = Column(Integer, default=0)
+    student        = relationship("User", back_populates="scripts")
+    class_         = relationship("Class", back_populates="scripts")
+    grading_steps  = relationship("GradingStep", back_populates="script", cascade="all, delete-orphan")
+    collusion_a    = relationship("CollusionFlag", foreign_keys="CollusionFlag.script_a_id", back_populates="script_a")
+    collusion_b    = relationship("CollusionFlag", foreign_keys="CollusionFlag.script_b_id", back_populates="script_b")
 
-    submission = relationship("Submission", back_populates="steps")
 
-class CollusionPair(Base):
-    __tablename__ = "collusion_pairs"
-    id = Column(Integer, primary_key=True, index=True)
-    assignment_id = Column(Integer, ForeignKey("assignments.id"))
-    student_a_id = Column(Integer)
-    student_a_name = Column(String)
-    student_a_reg = Column(String)
-    student_b_id = Column(Integer)
-    student_b_name = Column(String)
-    student_b_reg = Column(String)
-    cmi_score = Column(Float) # >= 0.88 is flagged
-    cos_sim = Column(Float)
-    error_match_score = Column(Float)
-    flagged_reason = Column(Text)
-    status = Column(String, default="FLAGGED") # 'FLAGGED', 'REVIEWED', 'DISMISSED'
+class GradingStep(Base):
+    __tablename__ = "grading_steps"
+    id            = Column(String, primary_key=True, default=gen_id)
+    script_id     = Column(String, ForeignKey("scripts.id"), nullable=False)
+    rubric_unit_id = Column(String, ForeignKey("rubric_units.id"), nullable=False)
+    matched       = Column(Boolean, nullable=False)
+    student_text  = Column(Text, nullable=True)
+    similarity    = Column(Float, nullable=True)
+    feedback      = Column(Text, nullable=True)
+    marks_status  = Column(String, nullable=True) # "Full Marks" | "Partial Marks" | "No Marks"
+    confidence_score = Column(Float, default=0.90) # Step alignment confidence (0-1)
 
-class ErrorCluster(Base):
-    __tablename__ = "error_clusters"
-    id = Column(Integer, primary_key=True, index=True)
-    assignment_id = Column(Integer, ForeignKey("assignments.id"))
-    cluster_name = Column(String)
-    frequency = Column(Integer)
-    percentage = Column(Float)
-    description = Column(Text)
-    affected_students_json = Column(Text) # JSON string list of student names
+    script        = relationship("Script", back_populates="grading_steps")
+    rubric_unit   = relationship("RubricUnit", back_populates="grading_steps")
 
-class PYQQuestion(Base):
-    __tablename__ = "pyq_questions"
-    id = Column(Integer, primary_key=True, index=True)
-    subject = Column(String)
-    year = Column(Integer)
-    exam_type = Column(String) # 'CAT-1', 'CAT-2', 'FAT'
-    title = Column(String)
-    question_text = Column(Text)
-    answer_key_summary = Column(Text)
-    difficulty = Column(String, default="Medium") # 'Easy', 'Medium', 'Hard'
-    topics_json = Column(Text)
 
-class DoubtQuery(Base):
-    __tablename__ = "doubt_queries"
-    id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("users.id"))
-    step_id = Column(Integer, ForeignKey("submission_steps.id"), nullable=True)
-    user_question = Column(Text)
-    ai_response = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+class CollusionFlag(Base):
+    __tablename__ = "collusion_flags"
+    id            = Column(String, primary_key=True, default=gen_id)
+    class_id      = Column(String, ForeignKey("classes.id"), nullable=False)
+    script_a_id   = Column(String, ForeignKey("scripts.id"), nullable=False)
+    script_b_id   = Column(String, ForeignKey("scripts.id"), nullable=False)
+    cmi_score     = Column(Float, nullable=False)
+    shared_errors = Column(Text, nullable=True)   # JSON string
+    matched_phrases = Column(Text, nullable=True) # JSON string
+    status        = Column(SAEnum("pending_review", "cleared", "confirmed", name="collusion_status_enum"), default="pending_review")
+    created_at    = Column(DateTime, default=datetime.utcnow)
+
+    script_a      = relationship("Script", foreign_keys=[script_a_id], back_populates="collusion_a")
+    script_b      = relationship("Script", foreign_keys=[script_b_id], back_populates="collusion_b")
+
+
+class PYQ(Base):
+    __tablename__ = "pyq_bank"
+    id            = Column(String, primary_key=True, default=gen_id)
+    subject       = Column(String, nullable=False, index=True)
+    exam_name     = Column(String, nullable=False)
+    year          = Column(Integer, nullable=False)
+    question_text = Column(Text, nullable=False)
+    sample_solution = Column(Text, nullable=True)
+    rubric_json   = Column(Text, nullable=True)
+    marks         = Column(Float, default=10.0)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+
+
+class Assignment(Base):
+    __tablename__ = "assignments"
+    id          = Column(String, primary_key=True, default=gen_id)
+    class_id    = Column(String, ForeignKey("classes.id"), nullable=False)
+    teacher_id  = Column(String, ForeignKey("users.id"), nullable=False)
+    title       = Column(String, nullable=False)
+    exam_name   = Column(String, nullable=False)
+    instructions= Column(Text, nullable=True)
+    total_marks = Column(Float, default=10.0)
+    due_date    = Column(String, nullable=True)
+    file_path   = Column(String, nullable=True)
+    created_at  = Column(DateTime, default=datetime.utcnow)
+
+    class_      = relationship("Class", back_populates="assignments")
+    teacher     = relationship("User")
+
+
+class Guild(Base):
+    __tablename__ = "guilds"
+    id          = Column(String, primary_key=True, default=gen_id)
+    name        = Column(String, nullable=False, unique=True)
+    domain      = Column(String, nullable=False, index=True)
+    code        = Column(String, nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    icon_badge  = Column(String, default="🏛️")
+    created_at  = Column(DateTime, default=datetime.utcnow)
+
+    members     = relationship("GuildMember", back_populates="guild", cascade="all, delete-orphan")
+
+
+class GuildMember(Base):
+    __tablename__ = "guild_members"
+    id         = Column(String, primary_key=True, default=gen_id)
+    guild_id   = Column(String, ForeignKey("guilds.id"), nullable=False)
+    user_id    = Column(String, ForeignKey("users.id"), nullable=False)
+    joined_at  = Column(DateTime, default=datetime.utcnow)
+
+    guild      = relationship("Guild", back_populates="members")
+    user       = relationship("User")
+
+
+class MarketplaceRubric(Base):
+    __tablename__ = "marketplace_rubrics"
+    id            = Column(String, primary_key=True, default=gen_id)
+    title         = Column(String, nullable=False)
+    subject       = Column(String, nullable=False, index=True)
+    author_id     = Column(String, ForeignKey("users.id"), nullable=False)
+    author_name   = Column(String, nullable=False)
+    institution   = Column(String, nullable=True)
+    description   = Column(Text, nullable=True)
+    rubric_json   = Column(Text, nullable=False) # JSON array of units
+    downloads     = Column(Integer, default=0)
+    rating        = Column(Float, default=4.9)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+
+    author        = relationship("User")
+
+
+
+
