@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "name": "answerdoctor",
   "builds": [
     {
       "src": "package.json",
@@ -13,7 +12,10 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://answerdoctor.onrender.com/api/$1"
+      "dest": "https://beige-pillows-know.loca.lt/api/$1",
+      "headers": {
+        "bypass-tunnel-reminder": "true"
+      }
     },
     {
       "handle": "filesystem"
@@ -24,6 +26,6 @@
     }
   ],
   "env": {
-    "VITE_API_BASE_URL": "https://answerdoctor.onrender.com/api"
+    "VITE_API_BASE_URL": "/api"
   }
 }
