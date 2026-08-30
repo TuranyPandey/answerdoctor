@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, ensure_auth_schema
 from security import get_current_user
-from routers import auth, classrooms, assignments, submissions, malpractice, analytics, pyq, doubts
+from routers import auth, classrooms, assignments, submissions, malpractice, analytics, pyq, doubts, documents
 import os
 
 # Create tables
@@ -38,6 +38,7 @@ app.include_router(malpractice.router, dependencies=protected)
 app.include_router(analytics.router, dependencies=protected)
 app.include_router(pyq.router, dependencies=protected)
 app.include_router(doubts.router, dependencies=protected)
+app.include_router(documents.router, dependencies=protected)
 
 @app.on_event("startup")
 def startup_db_seed():

@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Submission, SubmissionStep, RubricUnit, User, Assignment, CollusionPair
+from models import (Submission, SubmissionStep, RubricUnit, User, Assignment, CollusionPair,
+                    Classroom, ClassroomStudent, UploadedDocument, DocumentQuestionBlock)
 from services.semantic_aligner import compute_similarity, calculate_ras
 from services.diagnosis_agent import generate_step_diagnosis, generate_retry_question
 from services.malpractice_radar import compute_cmi
 from pydantic import BaseModel
 from typing import Optional, List
+from security import get_current_user
+from services.document_ingestion import extract_pdf_text, split_question_blocks
 
 router = APIRouter(prefix="/api/submissions", tags=["Submissions"])
 
@@ -14,6 +17,7 @@ class CustomSubmissionStepInput(BaseModel):
     step_number: int
     student_text: str
     has_diagram: Optional[bool] = False
+    question_number: Optional[str] = None
 
 class DynamicEvaluateSubmissionRequest(BaseModel):
     assignment_id: int
@@ -25,8 +29,97 @@ class StepRetryRequest(BaseModel):
     step_id: int
     selected_option: str # 'A', 'B', 'C', 'D'
 
+def _assignment_for_user(assignment_id: int, current_user: User, db: Session, teacher_only=False):
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    classroom = db.query(Classroom).filter(Classroom.id == assignment.classroom_id).first()
+    if current_user.role == "teacher":
+        allowed = classroom and classroom.teacher_id == current_user.id
+    else:
+        allowed = not teacher_only and db.query(ClassroomStudent).filter(
+            ClassroomStudent.classroom_id == assignment.classroom_id,
+            ClassroomStudent.student_id == current_user.id).first() is not None
+    if not allowed:
+        raise HTTPException(status_code=403, detail="You do not have access to this exam")
+    return assignment
+
+def _submission_for_user(submission_id: int, current_user: User, db: Session):
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    _assignment_for_user(submission.assignment_id, current_user, db)
+    if current_user.role == "student" and submission.student_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Students can only view their own submissions")
+    return submission
+
+@router.post("/upload", status_code=201)
+async def upload_answer_sheet(
+    assignment_id: int = Form(...),
+    file: UploadFile = File(...),
+    student_name: Optional[str] = Form(None),
+    register_number: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    assignment = _assignment_for_user(assignment_id, current_user, db)
+    if file.content_type not in ("application/pdf", "application/x-pdf"):
+        raise HTTPException(status_code=415, detail="Upload a PDF answer sheet")
+    if current_user.role == "student":
+        student = current_user
+    else:
+        normalized_reg = (register_number or "").strip().upper()
+        student = db.query(User).filter(User.register_number == normalized_reg, User.role == "student").first()
+        if not student:
+            raise HTTPException(status_code=404, detail="Choose a registered student from this class")
+        enrolled = db.query(ClassroomStudent).filter(
+            ClassroomStudent.classroom_id == assignment.classroom_id,
+            ClassroomStudent.student_id == student.id).first()
+        if not enrolled:
+            raise HTTPException(status_code=403, detail="That student is not enrolled in this class")
+    try:
+        extracted = extract_pdf_text(await file.read())
+        blocks = split_question_blocks(extracted.text)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    request = DynamicEvaluateSubmissionRequest(
+        assignment_id=assignment_id,
+        student_name=student.full_name if student else (student_name or "Student"),
+        register_number=student.register_number or str(student.id),
+        steps=[CustomSubmissionStepInput(step_number=index, student_text=block["text"], question_number=block["question_number"])
+               for index, block in enumerate(blocks, start=1)],
+    )
+    result = evaluate_custom_submission(request, db=db, current_user=current_user)
+    submission = db.query(Submission).filter(Submission.id == result["submission_id"]).first()
+    submission.raw_script_text = extracted.text
+    submission.ocr_confidence = extracted.confidence
+    document = UploadedDocument(
+        document_type="answer_sheet", assignment_id=assignment_id, submission_id=submission.id,
+        uploaded_by_id=current_user.id, original_filename=file.filename or "answer-sheet.pdf",
+        mime_type="application/pdf", raw_text=extracted.text,
+        extraction_method=extracted.extraction_method, page_count=extracted.page_count,
+        confidence=extracted.confidence,
+    )
+    db.add(document)
+    db.flush()
+    for block in blocks:
+        db.add(DocumentQuestionBlock(document_id=document.id, **block))
+    db.commit()
+    guide = db.query(UploadedDocument).filter(
+        UploadedDocument.assignment_id == assignment_id,
+        UploadedDocument.document_type == "marking_guide").order_by(UploadedDocument.id.desc()).first()
+    result.update({
+        "answer_document_id": document.id,
+        "marking_guide_document_id": guide.id if guide else None,
+        "extraction_method": extracted.extraction_method,
+        "ocr_confidence": extracted.confidence,
+        "questions_detected": [block["label"] for block in blocks],
+    })
+    return result
+
 @router.get("/assignment/{assignment_id}")
-def list_submissions(assignment_id: int, db: Session = Depends(get_db)):
+def list_submissions(assignment_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    _assignment_for_user(assignment_id, current_user, db, teacher_only=True)
     subs = db.query(Submission).filter(Submission.assignment_id == assignment_id).all()
     res = []
     for s in subs:
@@ -43,17 +136,24 @@ def list_submissions(assignment_id: int, db: Session = Depends(get_db)):
     return res
 
 @router.get("/student/{student_id}/assignment/{assignment_id}")
-def get_student_submission(student_id: int, assignment_id: int, db: Session = Depends(get_db)):
+def get_student_submission(student_id: int, assignment_id: int, db: Session = Depends(get_db),
+                           current_user: User = Depends(get_current_user)):
+    _assignment_for_user(assignment_id, current_user, db)
+    if current_user.role == "student" and student_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Students can only view their own submissions")
     sub = db.query(Submission).filter(
         Submission.assignment_id == assignment_id,
         Submission.student_id == student_id
     ).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
-    return get_submission_details(sub.id, db)
+    return get_submission_details(sub.id, db, current_user)
 
 @router.get("/student/{student_id}/latest")
-def get_latest_student_submission(student_id: int, db: Session = Depends(get_db)):
+def get_latest_student_submission(student_id: int, db: Session = Depends(get_db),
+                                  current_user: User = Depends(get_current_user)):
+    if current_user.role == "student" and student_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Students can only view their own submissions")
     sub = (
         db.query(Submission)
         .filter(Submission.student_id == student_id)
@@ -62,17 +162,16 @@ def get_latest_student_submission(student_id: int, db: Session = Depends(get_db)
     )
     if not sub:
         raise HTTPException(status_code=404, detail="No evaluated answers yet")
-    result = get_submission_details(sub.id, db)
+    result = get_submission_details(sub.id, db, current_user)
     student_submissions = db.query(Submission).filter(Submission.student_id == student_id).all()
     result["student_submission_count"] = len(student_submissions)
     result["student_passed_count"] = sum(item.total_ras_score >= 60 for item in student_submissions)
     return result
 
 @router.get("/{submission_id}")
-def get_submission_details(submission_id: int, db: Session = Depends(get_db)):
-    sub = db.query(Submission).filter(Submission.id == submission_id).first()
-    if not sub:
-        raise HTTPException(status_code=404, detail="Submission not found")
+def get_submission_details(submission_id: int, db: Session = Depends(get_db),
+                           current_user: User = Depends(get_current_user)):
+    sub = _submission_for_user(submission_id, current_user, db)
     
     steps = db.query(SubmissionStep).filter(SubmissionStep.submission_id == submission_id).order_by(SubmissionStep.step_number).all()
     
@@ -132,40 +231,47 @@ def get_submission_details(submission_id: int, db: Session = Depends(get_db)):
     }
 
 @router.post("/evaluate")
-def evaluate_custom_submission(req: DynamicEvaluateSubmissionRequest, db: Session = Depends(get_db)):
+def evaluate_custom_submission(
+    req: DynamicEvaluateSubmissionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """
     DYNAMIC EVALUATION ENDPOINT:
     Accepts custom student derivations, aligns each step against the assignment's rubric units,
     computes RAS score, saves to DB, checks CMI collusion against cohort, and updates Reasoning Map!
     """
-    assignment = db.query(Assignment).filter(Assignment.id == req.assignment_id).first()
-    if not assignment:
-        raise HTTPException(status_code=404, detail="Assignment not found")
+    assignment = _assignment_for_user(req.assignment_id, current_user, db)
     
     rubric_units = db.query(RubricUnit).filter(RubricUnit.assignment_id == req.assignment_id).order_by(RubricUnit.id).all()
     if not rubric_units:
         raise HTTPException(status_code=400, detail="Assignment has no rubric units defined")
 
     # Find or create student user
-    student = db.query(User).filter(User.register_number == req.register_number).first()
+    student = db.query(User).filter(User.register_number == req.register_number.strip().upper()).first()
     if not student:
-        student = User(
-            email=f"{req.register_number.lower()}@vitstudent.ac.in",
-            full_name=req.student_name,
-            register_number=req.register_number,
-            role="student"
-        )
-        db.add(student)
-        db.commit()
-        db.refresh(student)
+        raise HTTPException(status_code=404, detail="Student account not found")
+    if current_user.role == "student" and student.id != current_user.id:
+        raise HTTPException(status_code=403, detail="Students can only submit their own answer sheets")
+    enrolled = db.query(ClassroomStudent).filter(
+        ClassroomStudent.classroom_id == assignment.classroom_id,
+        ClassroomStudent.student_id == student.id).first()
+    if not enrolled:
+        raise HTTPException(status_code=403, detail="Student is not enrolled in this class")
 
     # Step-by-step semantic alignment
     step_matches = []
     created_step_objects = []
+    used_rubric_ids = set()
 
+    rubric_by_question = {
+        unit.label.lower().replace("question", "q").replace(" ", ""): unit
+        for unit in rubric_units
+    }
     for i, s_input in enumerate(req.steps):
-        # Match with corresponding rubric unit
-        ru = rubric_units[i % len(rubric_units)]
+        question_key = f"q{(s_input.question_number or '').lower()}".replace(" ", "")
+        ru = rubric_by_question.get(question_key) or rubric_units[i % len(rubric_units)]
+        used_rubric_ids.add(ru.id)
         sim_score = compute_similarity(s_input.student_text, ru.expected_text)
 
         step_matches.append({
@@ -183,6 +289,25 @@ def evaluate_custom_submission(req: DynamicEvaluateSubmissionRequest, db: Sessio
             'unit_category': ru.category,
             'unit_label': ru.label,
             'expected_text': ru.expected_text
+        })
+
+    for ru in rubric_units:
+        if ru.id in used_rubric_ids:
+            continue
+        step_matches.append({
+            'unit_weight': ru.weight,
+            'similarity_score': 0.0,
+            'gamma_threshold': ru.gamma_threshold,
+        })
+        created_step_objects.append({
+            'step_number': len(created_step_objects) + 1,
+            'student_text': '',
+            'has_diagram': False,
+            'rubric_unit_id': ru.id,
+            'similarity_score': 0.0,
+            'unit_category': ru.category,
+            'unit_label': ru.label,
+            'expected_text': ru.expected_text,
         })
 
     # Compute Rubric-Alignment Score (RAS)
@@ -267,13 +392,15 @@ def evaluate_custom_submission(req: DynamicEvaluateSubmissionRequest, db: Sessio
 
     db.commit()
 
-    return get_submission_details(sub.id, db)
+    return get_submission_details(sub.id, db, current_user)
 
 @router.post("/retry")
-def process_step_retry(req: StepRetryRequest, db: Session = Depends(get_db)):
+def process_step_retry(req: StepRetryRequest, db: Session = Depends(get_db),
+                       current_user: User = Depends(get_current_user)):
     step = db.query(SubmissionStep).filter(SubmissionStep.id == req.step_id).first()
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
+    _submission_for_user(step.submission_id, current_user, db)
     
     unit = db.query(RubricUnit).filter(RubricUnit.id == step.rubric_unit_id).first()
     retry_q = generate_retry_question(unit.label if unit else "", unit.expected_text if unit else "")

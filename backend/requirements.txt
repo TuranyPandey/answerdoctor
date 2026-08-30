@@ -9,3 +9,7 @@ pillow>=9.5.0
 PyJWT>=2.9.0
 pwdlib[argon2]>=0.2.0
 google-auth>=2.35.0
+pymupdf>=1.26.0
+rapidocr>=3.4.0
+onnxruntime>=1.20.0
+numpy>=1.26.0

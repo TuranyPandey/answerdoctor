@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   LogOut, Users, BookOpen, BarChart3, ShieldAlert, 
-  Sparkles, Send, FileText, CheckCircle, Search, Grid
+  Sparkles, Send, FileText, CheckCircle, Search, Grid, UploadCloud, Plus, Copy
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { apiFetch } from '../apiConfig';
@@ -23,7 +23,13 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
   const [evalResult, setEvalResult] = useState(null);
   const [assignmentId, setAssignmentId] = useState(null);
   const [assignments, setAssignments] = useState([]);
+  const [classrooms, setClassrooms] = useState([]);
   const [classroom, setClassroom] = useState(null);
+  const [roster, setRoster] = useState([]);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassSubject, setNewClassSubject] = useState('');
+  const [guideFile, setGuideFile] = useState(null);
+  const [answerFile, setAnswerFile] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [malpractice, setMalpractice] = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -32,27 +38,47 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
   useEffect(() => {
     const loadWorkspace = async () => {
       try {
-        let response = await apiFetch('/classrooms/?teacher_id=' + user.id);
+        const response = await apiFetch('/classrooms/');
         if (!response.ok) throw new Error('Could not load classrooms');
-        let rooms = await response.json();
-        if (!rooms.length) {
-          response = await apiFetch('/classrooms/create', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: `${user.full_name}'s class`, subject: 'General', teacher_id: user.id })
-          });
-          if (!response.ok) throw new Error('Could not create workspace');
-          rooms = [await response.json()];
-        }
-        setClassroom(rooms[0]);
-        response = await apiFetch('/assignments/?teacher_id=' + user.id);
-        if (!response.ok) throw new Error('Could not load assignments');
-        const savedAssignments = await response.json();
-        setAssignments(savedAssignments);
-        if (savedAssignments.length) setAssignmentId(savedAssignments[0].id);
+        const rooms = await response.json();
+        setClassrooms(rooms);
+        setClassroom(rooms[0] || null);
       } catch (error) { setActionError('Could not connect to the persistent workspace. Check the backend.'); }
     };
     loadWorkspace();
   }, [user.id, user.full_name]);
+
+  useEffect(() => {
+    const loadClass = async () => {
+      if (!classroom?.id) {
+        setAssignments([]); setAssignmentId(null); setRoster([]); return;
+      }
+      try {
+        const [assignmentResponse, rosterResponse] = await Promise.all([
+          apiFetch(`/assignments/classroom/${classroom.id}`),
+          apiFetch(`/classrooms/${classroom.id}/students`),
+        ]);
+        if (!assignmentResponse.ok || !rosterResponse.ok) throw new Error('Could not load class');
+        const savedAssignments = await assignmentResponse.json();
+        setAssignments(savedAssignments);
+        setRoster(await rosterResponse.json());
+        setAssignmentId(savedAssignments[0]?.id || null);
+      } catch { setActionError('Could not load this class workspace.'); }
+    };
+    loadClass();
+  }, [classroom?.id]);
+
+  const handleCreateClass = async (event) => {
+    event.preventDefault(); setActionBusy(true); setActionError('');
+    try {
+      const response = await apiFetch('/classrooms/create', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newClassName, subject: newClassSubject }) });
+      if (!response.ok) throw new Error(await response.text());
+      const created = await response.json();
+      setClassrooms(previous => [created, ...previous]); setClassroom(created);
+      setNewClassName(''); setNewClassSubject('');
+    } catch { setActionError('Could not create the class.'); } finally { setActionBusy(false); }
+  };
 
   const refreshReports = async (id) => {
     if (!id) { setAnalytics(null); setMalpractice(null); return; }
@@ -73,22 +99,25 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
     setActionError('');
     setEvalMsg('');
     try {
-      const response = await apiFetch('/assignments/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: assTitle,
-          subject: assSubject,
-          classroom_id: classroom.id,
-          answer_key_text: assKeyText,
-          total_marks: 100
-        })
-      });
+      let response;
+      if (guideFile) {
+        const form = new FormData();
+        form.append('title', assTitle); form.append('subject', assSubject);
+        form.append('classroom_id', classroom.id); form.append('total_marks', '100'); form.append('file', guideFile);
+        response = await apiFetch('/assignments/upload-guide', { method: 'POST', body: form });
+      } else {
+        response = await apiFetch('/assignments/create', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: assTitle, subject: assSubject, classroom_id: classroom.id,
+            answer_key_text: assKeyText, total_marks: 100 }) });
+      }
       if (!response.ok) throw new Error(await response.text());
       const assignment = await response.json();
       setAssignmentId(assignment.id);
       setAssignments(prev => [{ ...assignment, units_count: 0, total_scripts: 0 }, ...prev]);
-      setEvalMsg(`Assignment ${assignment.id} saved. Its rubric is ready for deterministic step matching.`);
+      setGuideFile(null);
+      setEvalMsg(assignment.marking_guide_document_id
+        ? `Guide document ${assignment.marking_guide_document_id} saved; ${assignment.questions_detected?.join(', ') || 'question blocks'} are ready.`
+        : `Assignment ${assignment.id} saved. Its rubric is ready for matching.`);
     } catch (error) {
       setActionError('Could not save the rubric. Start the FastAPI backend on port 8008 and try again.');
     } finally {
@@ -102,21 +131,20 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
     setActionError('');
     setEvalResult(null);
     try {
-      const response = await apiFetch('/submissions/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assignment_id: assignmentId,
-          student_name: studentName,
-          register_number: regNo,
-          steps: [
-            { step_number: 1, student_text: step1Text, has_diagram: false },
-            { step_number: 2, student_text: step2Text || 'Q - W = delta U', has_diagram: false }
-          ]
-        })
-      });
+      let response;
+      if (answerFile) {
+        const form = new FormData(); form.append('assignment_id', assignmentId); form.append('file', answerFile);
+        form.append('student_name', studentName); form.append('register_number', regNo);
+        response = await apiFetch('/submissions/upload', { method: 'POST', body: form });
+      } else {
+        response = await apiFetch('/submissions/evaluate', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignment_id: assignmentId, student_name: studentName, register_number: regNo,
+            steps: [{ step_number: 1, student_text: step1Text, has_diagram: false },
+              { step_number: 2, student_text: step2Text || 'Q - W = delta U', has_diagram: false }] }) });
+      }
       if (!response.ok) throw new Error(await response.text());
       setEvalResult(await response.json());
+      setAnswerFile(null);
       await refreshReports(assignmentId);
     } catch (error) {
       setActionError('Evaluation failed. Confirm the backend is running and the selected assignment has rubric units.');
@@ -201,17 +229,43 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
 
       {/* Main Content Area */}
       <main key={activeTab} className="dashboard-view-transition max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div><p className="text-xs font-bold uppercase tracking-wide text-gray-500">Persistent workspace</p><p className="text-sm font-semibold text-gray-900">{classroom?.name || 'Loading classroom…'} {classroom?.code ? `• Join code ${classroom.code}` : ''}</p></div>
-          <select value={assignmentId || ''} onChange={e => setAssignmentId(Number(e.target.value))} className="rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900">
-            <option value="">No assignment selected</option>
-            {assignments.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
-          </select>
+        <div className="mb-6 grid gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_1fr_auto] md:items-end">
+          <label className="text-xs font-bold text-gray-600">Active class
+            <select value={classroom?.id || ''} onChange={e => setClassroom(classrooms.find(room => room.id === Number(e.target.value)) || null)} className="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+              <option value="">Create a class to begin</option>
+              {classrooms.map(room => <option key={room.id} value={room.id}>{room.name} · {room.subject}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-bold text-gray-600">Exam / marking guide
+            <select value={assignmentId || ''} onChange={e => setAssignmentId(Number(e.target.value) || null)} className="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+              <option value="">No exam selected</option>
+              {assignments.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+            </select>
+          </label>
+          {classroom && <button type="button" onClick={() => navigator.clipboard?.writeText(classroom.code)} className="flex items-center justify-center gap-2 rounded-lg bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700"><Copy size={15} /> Code {classroom.code}</button>}
         </div>
         
         {/* TAB 1: CLASSROOM ANALYTICS & CHARTS */}
         {activeTab === 'analytics' && (
           <div className="space-y-8">
+            <section className="grid gap-4 lg:grid-cols-[1fr_2fr]">
+              <form onSubmit={handleCreateClass} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
+                <h2 className="flex items-center gap-2 font-bold"><Plus size={18} className="text-blue-600" /> Create a class</h2>
+                <input value={newClassName} onChange={e => setNewClassName(e.target.value)} required placeholder="Class name, e.g. MECH A" className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm" />
+                <input value={newClassSubject} onChange={e => setNewClassSubject(e.target.value)} required placeholder="Subject" className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm" />
+                <button disabled={actionBusy} className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Create class & generate code</button>
+              </form>
+              <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h2 className="font-bold">Your classes</h2>
+                <p className="mt-1 text-xs text-gray-500">Each code connects students, exams, uploaded guides, answer sheets, and results.</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {classrooms.map(room => <button key={room.id} onClick={() => setClassroom(room)} className={`rounded-lg border p-4 text-left ${classroom?.id === room.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <p className="font-bold">{room.name}</p><p className="text-xs text-gray-600">{room.subject} · {room.student_count} students</p><p className="mt-2 font-mono text-sm font-bold text-blue-700">Join code: {room.code}</p>
+                  </button>)}
+                  {!classrooms.length && <p className="text-sm text-gray-500">No classes yet.</p>}
+                </div>
+              </div>
+            </section>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                 <p className="text-xs text-gray-600 uppercase font-semibold">Average Reasoning Score</p>
@@ -388,9 +442,16 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
                     onChange={(e) => setAssKeyText(e.target.value)}
                     placeholder="1. Concept: Establish reference state T_0 = 298.15 K, P_0 = 1 atm.\n2. Formula: Q - W = delta U.\n3. Result: Q_net = 384.6 kJ."
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-gray-900 focus:outline-none"
-                    required
+                    required={!guideFile}
                   />
                 </div>
+
+                <label className="block cursor-pointer rounded-lg border-2 border-dashed border-purple-200 bg-purple-50 p-4 text-center font-bold text-purple-800">
+                  <UploadCloud className="mx-auto mb-2" size={22} />
+                  {guideFile ? guideFile.name : 'Upload marking guide PDF (text extraction + OCR fallback)'}
+                  <input type="file" accept="application/pdf,.pdf" onChange={e => setGuideFile(e.target.files?.[0] || null)} className="sr-only" />
+                </label>
+                <p className="text-[11px] text-gray-500">Use headings like Q1, Q2, Q3 for the most reliable question mapping. Typed text remains available as a fallback.</p>
 
                 <button
                   type="submit"
@@ -415,6 +476,13 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
               </h3>
 
               <form onSubmit={handleEvaluateCustomScript} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Enrolled student</label>
+                  <select onChange={e => { const selected = roster.find(item => item.id === Number(e.target.value)); if (selected) { setStudentName(selected.full_name); setRegNo(selected.register_number || ''); } }} className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900">
+                    <option value="">Select from {roster.length} enrolled students</option>
+                    {roster.map(item => <option key={item.id} value={item.id}>{item.full_name} · {item.register_number}</option>)}
+                  </select>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block font-bold text-gray-700 mb-1">Student Name</label>
@@ -448,7 +516,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
                     onChange={(e) => setStep1Text(e.target.value)}
                     placeholder="State reference conditions T_0 = 298.15 K."
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-gray-900 focus:outline-none"
-                    required
+                    required={!answerFile}
                   />
                 </div>
 
@@ -460,9 +528,16 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
                     onChange={(e) => setStep2Text(e.target.value)}
                     placeholder="Q - W = delta U"
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-gray-900 focus:outline-none"
-                    required
+                    required={!answerFile}
                   />
                 </div>
+
+                <label className="block cursor-pointer rounded-lg border-2 border-dashed border-blue-200 bg-blue-50 p-4 text-center font-bold text-blue-800">
+                  <UploadCloud className="mx-auto mb-2" size={22} />
+                  {answerFile ? answerFile.name : 'Upload student answer-sheet PDF'}
+                  <input type="file" accept="application/pdf,.pdf" onChange={e => setAnswerFile(e.target.files?.[0] || null)} className="sr-only" />
+                </label>
+                <p className="text-[11px] text-gray-500">Answer blocks labelled Q1/Q2/Q3 are paired with the same blocks in the selected marking guide before rubric analysis.</p>
 
                 <button
                   type="submit"

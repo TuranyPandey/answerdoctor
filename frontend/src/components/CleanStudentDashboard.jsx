@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   LogOut, FileText, TrendingUp, AlertCircle, CheckCircle, Clock, 
-  HelpCircle, BookOpen, Layers, Sparkles, Send, Award, Target, Check, X
+  HelpCircle, BookOpen, Layers, Sparkles, Send, Award, Target, Check, X, UploadCloud, Users
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { apiFetch } from '../apiConfig';
@@ -16,6 +16,14 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
   const [loadError, setLoadError] = useState('');
   const [pyqs, setPyqs] = useState([]);
   const [retryBusy, setRetryBusy] = useState(false);
+  const [classrooms, setClassrooms] = useState([]);
+  const [classroomId, setClassroomId] = useState(null);
+  const [assignments, setAssignments] = useState([]);
+  const [assignmentId, setAssignmentId] = useState(null);
+  const [joinCode, setJoinCode] = useState('');
+  const [answerFile, setAnswerFile] = useState(null);
+  const [workspaceMessage, setWorkspaceMessage] = useState('');
+  const [uploadBusy, setUploadBusy] = useState(false);
 
   // Doubt Center State
   const [doubtMessages, setDoubtMessages] = useState([
@@ -41,7 +49,40 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
     };
     loadSubmission();
     apiFetch('/pyq/').then(res => res.ok ? res.json() : []).then(setPyqs).catch(() => setPyqs([]));
+    apiFetch('/classrooms/').then(res => res.ok ? res.json() : []).then(rooms => {
+      setClassrooms(rooms); setClassroomId(rooms[0]?.id || null);
+    }).catch(() => setClassrooms([]));
   }, [user.id]);
+
+  useEffect(() => {
+    if (!classroomId) { setAssignments([]); setAssignmentId(null); return; }
+    apiFetch(`/assignments/classroom/${classroomId}`).then(res => res.ok ? res.json() : []).then(items => {
+      setAssignments(items); setAssignmentId(items[0]?.id || null);
+    }).catch(() => setAssignments([]));
+  }, [classroomId]);
+
+  const handleJoinClass = async (event) => {
+    event.preventDefault(); setWorkspaceMessage('');
+    const response = await apiFetch('/classrooms/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: joinCode }) });
+    const result = await response.json();
+    if (!response.ok) { setWorkspaceMessage(result.detail || 'Could not join class.'); return; }
+    setClassrooms(previous => previous.some(room => room.id === result.classroom.id) ? previous : [result.classroom, ...previous]);
+    setClassroomId(result.classroom.id); setJoinCode(''); setWorkspaceMessage(`Joined ${result.classroom.name}.`);
+  };
+
+  const handleUploadAnswer = async (event) => {
+    event.preventDefault();
+    if (!answerFile || !assignmentId) return;
+    setUploadBusy(true); setWorkspaceMessage('');
+    try {
+      const form = new FormData(); form.append('assignment_id', assignmentId); form.append('file', answerFile);
+      const response = await apiFetch('/submissions/upload', { method: 'POST', body: form });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.detail || 'Upload failed.');
+      setSubmission(result); setAnswerFile(null); setLoadError(''); setDataSource('OCR document result');
+      setWorkspaceMessage(`Answer document ${result.answer_document_id} graded against guide ${result.marking_guide_document_id || assignmentId}.`);
+    } catch (error) { setWorkspaceMessage(error.message); } finally { setUploadBusy(false); }
+  };
 
   const handleRetrySubmit = async (step) => {
     if (!selectedOption) return;
@@ -85,8 +126,41 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
     }
   };
 
+  const classroomWorkspace = (
+    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div><h2 className="flex items-center gap-2 font-bold text-gray-900"><Users size={18} className="text-blue-600" /> Classes & answer sheets</h2><p className="mt-1 text-xs text-gray-500">Join with your teacher's code, choose an exam, then submit a PDF.</p></div>
+      </div>
+      <form onSubmit={handleJoinClass} className="mt-4 flex gap-2">
+        <input value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} maxLength={6} required placeholder="6-character class code" className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-sm uppercase" />
+        <button className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-bold text-white">Join class</button>
+      </form>
+      {!!classrooms.length && <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <label className="text-xs font-bold text-gray-600">Class
+          <select value={classroomId || ''} onChange={e => setClassroomId(Number(e.target.value) || null)} className="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+            {classrooms.map(room => <option key={room.id} value={room.id}>{room.name} · {room.subject}</option>)}
+          </select>
+        </label>
+        <label className="text-xs font-bold text-gray-600">Exam / marking guide
+          <select value={assignmentId || ''} onChange={e => setAssignmentId(Number(e.target.value) || null)} className="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+            <option value="">No published exam</option>
+            {assignments.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+          </select>
+        </label>
+      </div>}
+      <form onSubmit={handleUploadAnswer} className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+        <label className="block cursor-pointer rounded-lg border-2 border-dashed border-blue-200 bg-blue-50 p-4 text-center text-xs font-bold text-blue-800">
+          <UploadCloud className="mx-auto mb-1" size={20} />{answerFile ? answerFile.name : 'Choose answer-sheet PDF'}
+          <input type="file" accept="application/pdf,.pdf" onChange={e => setAnswerFile(e.target.files?.[0] || null)} className="sr-only" />
+        </label>
+        <button disabled={!answerFile || !assignmentId || uploadBusy} className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{uploadBusy ? 'Reading & grading…' : 'Submit for analysis'}</button>
+      </form>
+      {workspaceMessage && <p className="mt-3 rounded-lg bg-gray-100 p-3 text-xs font-bold text-gray-700">{workspaceMessage}</p>}
+    </section>
+  );
+
   if (!submission) {
-    return <div className="theme-page min-h-screen bg-gray-50 p-6 text-gray-900"><div className="mx-auto max-w-2xl rounded-xl border border-gray-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-bold">Hi, {user.full_name}</h1><p className="mt-3 text-sm text-gray-600">{loadError || 'Loading your latest evaluated answer…'}</p><p className="mt-2 text-xs text-gray-500">Ask your teacher to evaluate an answer using your registration number: <strong>{user.register_number}</strong>. It will appear here automatically.</p><button onClick={onLogout} className="mt-6 rounded-lg bg-gray-100 px-4 py-2 text-sm font-bold">Sign out</button></div></div>;
+    return <div className="theme-page min-h-screen bg-gray-50 p-6 text-gray-900"><div className="mx-auto max-w-4xl space-y-5"><div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"><div className="flex justify-between"><div><h1 className="text-xl font-bold">Hi, {user.full_name}</h1><p className="mt-2 text-sm text-gray-600">{loadError || 'No graded answer yet.'}</p></div><button onClick={onLogout} className="h-fit rounded-lg bg-gray-100 px-4 py-2 text-sm font-bold">Sign out</button></div></div>{classroomWorkspace}</div></div>;
   }
 
   return (
@@ -168,6 +242,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
 
       {/* Main Content Area */}
       <main key={activeTab} className="dashboard-view-transition max-w-7xl mx-auto px-6 py-8">
+        <div className="mb-8">{classroomWorkspace}</div>
         
         {/* TAB 1: MY SUBMISSIONS & CHARTS */}
         {activeTab === 'evaluations' && (

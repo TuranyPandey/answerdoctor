@@ -32,6 +32,9 @@ class ClassroomStudent(Base):
     classroom_id = Column(Integer, ForeignKey("classrooms.id"))
     student_id = Column(Integer, ForeignKey("users.id"))
 
+    classroom = relationship("Classroom")
+    student = relationship("User")
+
 class Assignment(Base):
     __tablename__ = "assignments"
     id = Column(Integer, primary_key=True, index=True)
@@ -95,6 +98,37 @@ class SubmissionStep(Base):
     retry_attempts = Column(Integer, default=0)
 
     submission = relationship("Submission", back_populates="steps")
+
+class UploadedDocument(Base):
+    __tablename__ = "uploaded_documents"
+    id = Column(Integer, primary_key=True, index=True)
+    document_type = Column(String) # 'marking_guide' or 'answer_sheet'
+    assignment_id = Column(Integer, ForeignKey("assignments.id"), index=True)
+    submission_id = Column(Integer, ForeignKey("submissions.id"), nullable=True, index=True)
+    uploaded_by_id = Column(Integer, ForeignKey("users.id"))
+    original_filename = Column(String)
+    mime_type = Column(String, default="application/pdf")
+    raw_text = Column(Text)
+    extraction_method = Column(String) # 'embedded_text', 'ocr', or 'hybrid'
+    page_count = Column(Integer)
+    confidence = Column(Float, default=1.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    assignment = relationship("Assignment")
+    submission = relationship("Submission")
+    uploader = relationship("User")
+    question_blocks = relationship("DocumentQuestionBlock", back_populates="document", cascade="all, delete-orphan")
+
+class DocumentQuestionBlock(Base):
+    __tablename__ = "document_question_blocks"
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("uploaded_documents.id"), index=True)
+    question_number = Column(String)
+    label = Column(String)
+    block_order = Column(Integer)
+    text = Column(Text)
+
+    document = relationship("UploadedDocument", back_populates="question_blocks")
 
 class CollusionPair(Base):
     __tablename__ = "collusion_pairs"

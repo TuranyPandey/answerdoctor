@@ -13,8 +13,9 @@ os.environ["ANSWERDOCTOR_SEED_DEMO"] = "false"
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
 from database import Base, SessionLocal, engine
+from models import User
 from routers.auth import LoginRequest, RegisterRequest, login, register
-from routers.classrooms import ClassroomCreate, create_classroom
+from routers.classrooms import ClassroomCreate, JoinClassroom, create_classroom, join_classroom
 from routers.assignments import AssignmentCreate, create_assignment
 from routers.submissions import CustomSubmissionStepInput, DynamicEvaluateSubmissionRequest, evaluate_custom_submission, get_latest_student_submission
 from routers.analytics import get_class_analytics
@@ -23,26 +24,29 @@ from routers.analytics import get_class_analytics
 Base.metadata.create_all(bind=engine)
 db = SessionLocal()
 teacher = register(RegisterRequest(email="teacher@example.edu", full_name="Test Teacher", password="teacher-pass-123", role="teacher"), db)
-classroom = create_classroom(ClassroomCreate(name="Physics A", subject="Physics", teacher_id=teacher["id"]), db)
+teacher_user = db.query(User).filter(User.id == teacher["id"]).one()
+classroom = create_classroom(ClassroomCreate(name="Physics A", subject="Physics"), db, teacher_user)
 assignment = create_assignment(AssignmentCreate(
-    title="Motion Test", subject="Physics", classroom_id=classroom.id,
+    title="Motion Test", subject="Physics", classroom_id=classroom["id"],
     answer_key_text="State Newton's second law\nF = m * a\nFinal answer: a = F / m", total_marks=10
-), db)
+), db, teacher_user)
 student = register(RegisterRequest(
     email="student@example.edu", full_name="Test Student", password="student-pass-123", register_number="TEST001", role="student"
 ), db)
+student_user = db.query(User).filter(User.id == student["id"]).one()
+join_classroom(JoinClassroom(code=classroom["code"]), db, student_user)
 evaluation = evaluate_custom_submission(DynamicEvaluateSubmissionRequest(
-    assignment_id=assignment.id, student_name="Test Student", register_number="TEST001",
+    assignment_id=assignment["id"], student_name="Test Student", register_number="TEST001",
     steps=[
         CustomSubmissionStepInput(step_number=1, student_text="Newton's second law relates force and acceleration"),
         CustomSubmissionStepInput(step_number=2, student_text="F = m * a"),
         CustomSubmissionStepInput(step_number=3, student_text="Final answer a = F / m"),
     ]
-), db)
-latest = get_latest_student_submission(student["id"], db)
+), db, teacher_user)
+latest = get_latest_student_submission(student["id"], db, student_user)
 assert latest["assignment_title"] == "Motion Test"
 assert latest["student_submission_count"] == 1
-analytics = get_class_analytics(assignment.id, db)
+analytics = get_class_analytics(assignment["id"], db)
 assert analytics["cohort_total_scripts"] == 1
 assert login(LoginRequest(email="teacher@example.edu", password="teacher-pass-123", role="teacher"), db)["id"] == teacher["id"]
 db.close()

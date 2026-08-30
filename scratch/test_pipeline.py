@@ -1,95 +1,114 @@
+"""HTTP smoke test for the authenticated AnswerDoctor workflow."""
 import requests
+
 
 BASE_URL = "http://127.0.0.1:8008/api"
 
+
+def expect(response, status=200):
+    assert response.status_code == status, f"{response.status_code}: {response.text}"
+    return response.json()
+
+
+def auth_headers(account):
+    return {"Authorization": f"Bearer {account['access_token']}"}
+
+
 def test_full_pipeline():
-    print("--- 0. Resetting deterministic demo data ---")
-    r = requests.post(f"{BASE_URL}/analytics/seed-demo")
-    assert r.status_code == 200
+    print("--- 1. Testing root status ---")
+    root = expect(requests.get("http://127.0.0.1:8008/"))
+    assert root["status"] == "active"
 
-    print("--- 1. Testing Root Status ---")
-    r = requests.get("http://127.0.0.1:8008/")
-    assert r.status_code == 200
-    print("Root API response:", r.json())
+    print("--- 2. Registering teacher and student accounts ---")
+    teacher = expect(requests.post(f"{BASE_URL}/auth/register", json={
+        "email": "http-teacher@example.edu", "full_name": "HTTP Teacher",
+        "password": "teacher-pass-123", "role": "teacher",
+    }), 201)
+    student = expect(requests.post(f"{BASE_URL}/auth/register", json={
+        "email": "http-student@example.edu", "full_name": "HTTP Student",
+        "password": "student-pass-123", "register_number": "HTTP001",
+        "role": "student",
+    }), 201)
+    teacher_headers = auth_headers(teacher)
+    student_headers = auth_headers(student)
 
-    print("\n--- 2. Testing Assignment Details & Rubric Decomposer ---")
-    r = requests.get(f"{BASE_URL}/assignments/1")
-    assert r.status_code == 200
-    ass_data = r.json()
-    print(f"Assignment Title: {ass_data['title']}")
-    print(f"Decomposed Rubric Units Count: {len(ass_data['rubric_units'])}")
-    for u in ass_data['rubric_units']:
-        print(f"  - [{u['category'].upper()}] {u['label']} (Weight: {u['weight']})")
+    print("--- 3. Creating and joining a classroom ---")
+    classroom = expect(requests.post(
+        f"{BASE_URL}/classrooms/create",
+        json={"name": "Physics A", "subject": "Physics"}, headers=teacher_headers,
+    ), 201)
+    joined = expect(requests.post(
+        f"{BASE_URL}/classrooms/join", json={"code": classroom["code"]},
+        headers=student_headers,
+    ))
+    assert joined["classroom"]["id"] == classroom["id"]
 
-    print("\n--- 3. Testing Seeded Class Analytics & Error Clusters ---")
-    r = requests.get(f"{BASE_URL}/analytics/assignment/1")
-    assert r.status_code == 200
-    ana_data = r.json()
-    print(f"Cohort Total Scripts: {ana_data['cohort_total_scripts']}")
-    print(f"Class Average RAS: {ana_data['class_average_ras']}%")
-    print("Weakness Heatmap Summary:")
-    for h in ana_data['weakness_heatmap']:
-        print(f"  - {h['label']}: Pass Rate {h['pass_rate_pct']}% ({h['weakness_level']})")
-    print("Error Misconception Clusters:")
-    for c in ana_data['error_clusters']:
-        print(f"  - [{c['percentage']}% Cohort] {c['cluster_name']}: {c['description']}")
+    print("--- 4. Creating an assignment and decomposed rubric ---")
+    assignment = expect(requests.post(
+        f"{BASE_URL}/assignments/create",
+        json={
+            "title": "Motion Test", "subject": "Physics",
+            "classroom_id": classroom["id"],
+            "answer_key_text": (
+                "State Newton's second law and define force.\n"
+                "Use the formula F = m * a.\n"
+                "Final answer: a = F / m."
+            ),
+            "total_marks": 10,
+        },
+        headers=teacher_headers,
+    ), 201)
+    details = expect(requests.get(
+        f"{BASE_URL}/assignments/{assignment['id']}", headers=teacher_headers,
+    ))
+    assert len(details["rubric_units"]) == 3
 
-    print("\n--- 4. Testing Malpractice Radar (CMI >= 0.88 Flagging) ---")
-    r = requests.get(f"{BASE_URL}/malpractice/assignment/1")
-    assert r.status_code == 200
-    mal_data = r.json()
-    print(f"Total Flagged Collusion Pairs: {mal_data['total_flagged_pairs']}")
-    for pair in mal_data['collusion_pairs']:
-        print(f"  - Pair: {pair['student_a_name']} ({pair['student_a_reg']}) <-> {pair['student_b_name']} ({pair['student_b_reg']})")
-        print(f"    CMI Score: {pair['cmi_score']} (CosSim: {pair['cos_sim']}, ErrorPatternMatch: {pair['error_match_score']})")
-        print(f"    Reason: {pair['flagged_reason']}")
-
-    print("\n--- 5. Testing Live Faculty Evaluation & Persistence ---")
-    evaluation_payload = {
-        "assignment_id": 1,
-        "student_name": "Review Two Demo",
-        "register_number": "DEMO-REVIEW-2",
-        "steps": [
-            {
-                "step_number": 1,
-                "student_text": "Applied the energy balance directly without defining the reference state.",
-                "has_diagram": False,
-            },
-            {
-                "step_number": 2,
-                "student_text": "Q - W = delta U where delta U = m c_v (T2 - T1).",
-                "has_diagram": False,
-            },
-        ],
-    }
-    r = requests.post(f"{BASE_URL}/submissions/evaluate", json=evaluation_payload)
-    assert r.status_code == 200, r.text
-    evaluated = r.json()
+    print("--- 5. Evaluating and persisting a student response ---")
+    evaluated = expect(requests.post(
+        f"{BASE_URL}/submissions/evaluate",
+        json={
+            "assignment_id": assignment["id"], "student_name": student["full_name"],
+            "register_number": student["register_number"],
+            "steps": [
+                {"step_number": 1, "student_text": "I skipped the law."},
+                {"step_number": 2, "student_text": "F = m * a"},
+                {"step_number": 3, "student_text": "I am not sure."},
+            ],
+        },
+        headers=teacher_headers,
+    ))
     assert evaluated["submission_id"]
-    assert len(evaluated["steps"]) == 2
-    print(f"Saved submission {evaluated['submission_id']} with RAS {evaluated['total_ras_score']}%")
+    assert len(evaluated["steps"]) == 3
 
-    print("\n--- 6. Testing Student Submission & Reasoning Map ---")
-    r = requests.get(f"{BASE_URL}/submissions/student/2/assignment/1")
-    assert r.status_code == 200
-    sub_data = r.json()
-    print(f"Student Name: {sub_data['student_name']} ({sub_data['register_number']})")
-    print(f"Total RAS Score: {sub_data['total_ras_score']}%")
-    print("Reasoning Map Nodes:")
-    for node in sub_data['reasoning_map']:
-        print(f"  - Step {node['step_number']} [{node['node_type']}]: {node['title']} -> Status: {node['status']} (Reasoning Break: {node['has_reasoning_break']})")
+    print("--- 6. Testing analytics and malpractice reports ---")
+    analytics = expect(requests.get(
+        f"{BASE_URL}/analytics/assignment/{assignment['id']}", headers=teacher_headers,
+    ))
+    assert analytics["cohort_total_scripts"] == 1
+    malpractice = expect(requests.get(
+        f"{BASE_URL}/malpractice/assignment/{assignment['id']}", headers=teacher_headers,
+    ))
+    assert malpractice["total_flagged_pairs"] == 0
 
-    print("\n--- 7. Testing Step-Level Retry Practice Drill ---")
-    weak_step = [s for s in sub_data['steps'] if s['status'] in ('WEAK', 'MISSING')][0]
-    print(f"Testing Retry for Step ID {weak_step['id']} (Step {weak_step['step_number']})...")
-    retry_payload = {"step_id": weak_step['id'], "selected_option": "A"}
-    r = requests.post(f"{BASE_URL}/submissions/retry", json=retry_payload)
-    assert r.status_code == 200
-    retry_res = r.json()
-    print(f"Retry Result: Correct? {retry_res['is_correct']}, New RAS Score: {retry_res['new_total_ras']}%")
-    print(f"Explanation: {retry_res['explanation']}")
+    print("--- 7. Testing student results and retry flow ---")
+    submission = expect(requests.get(
+        f"{BASE_URL}/submissions/student/{student['id']}/latest", headers=student_headers,
+    ))
+    assert submission["assignment_title"] == "Motion Test"
+    forbidden = requests.get(
+        f"{BASE_URL}/submissions/student/{teacher['id']}/latest", headers=student_headers,
+    )
+    assert forbidden.status_code == 403
+    weak_step = next(step for step in submission["steps"] if step["status"] in ("WEAK", "MISSING"))
+    retried = expect(requests.post(
+        f"{BASE_URL}/submissions/retry",
+        json={"step_id": weak_step["id"], "selected_option": "A"},
+        headers=student_headers,
+    ))
+    assert "is_correct" in retried
 
-    print("\n[SUCCESS] ALL END-TO-END TESTS PASSED SUCCESSFULLY!")
+    print("[SUCCESS] Authenticated HTTP pipeline passed")
+
 
 if __name__ == "__main__":
     test_full_pipeline()
