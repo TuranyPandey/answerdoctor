@@ -7,7 +7,7 @@ import ThemeToggle from './ThemeToggle';
 import { apiFetch } from '../apiConfig';
 
 export default function StudentDashboard({ user, onLogout, theme, onToggleTheme }) {
-  const [activeTab, setActiveTab] = useState('evaluations'); // 'evaluations', 'reasoning_map', 'doubts', 'pyq'
+  const [activeTab, setActiveTab] = useState('upload'); // 'upload', 'evaluations', 'reasoning_map', 'doubts', 'pyq'
   const [submission, setSubmission] = useState(null);
   const [retryModalStep, setRetryModalStep] = useState(null);
   const [selectedOption, setSelectedOption] = useState('');
@@ -67,7 +67,8 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
     const result = await response.json();
     if (!response.ok) { setWorkspaceMessage(result.detail || 'Could not join class.'); return; }
     setClassrooms(previous => previous.some(room => room.id === result.classroom.id) ? previous : [result.classroom, ...previous]);
-    setClassroomId(result.classroom.id); setJoinCode(''); setWorkspaceMessage(`Joined ${result.classroom.name}.`);
+    setClassroomId(result.classroom.id); setJoinCode(''); setActiveTab('upload');
+    setWorkspaceMessage(`Joined ${result.classroom.name}. Choose a published exam below to upload your answer.`);
   };
 
   const handleUploadAnswer = async (event) => {
@@ -80,6 +81,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
       const result = await response.json();
       if (!response.ok) throw new Error(result.detail || 'Upload failed.');
       setSubmission(result); setAnswerFile(null); setLoadError(''); setDataSource('OCR document result');
+      setActiveTab('evaluations');
       setWorkspaceMessage(`Answer document ${result.answer_document_id} graded against guide ${result.marking_guide_document_id || assignmentId}.`);
     } catch (error) { setWorkspaceMessage(error.message); } finally { setUploadBusy(false); }
   };
@@ -129,7 +131,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
   const classroomWorkspace = (
     <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
-        <div><h2 className="flex items-center gap-2 font-bold text-gray-900"><Users size={18} className="text-blue-600" /> Classes & answer sheets</h2><p className="mt-1 text-xs text-gray-500">Join with your teacher's code, choose an exam, then submit a PDF.</p></div>
+        <div><h2 className="flex items-center gap-2 font-bold text-gray-900"><UploadCloud size={18} className="text-blue-600" /> Upload an answer sheet</h2><p className="mt-1 text-xs text-gray-500">Join with your teacher's code, choose an exam, then submit a PDF for OCR and rubric analysis.</p></div>
       </div>
       <form onSubmit={handleJoinClass} className="mt-4 flex gap-2">
         <input value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} maxLength={6} required placeholder="6-character class code" className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-sm uppercase" />
@@ -148,13 +150,19 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
           </select>
         </label>
       </div>}
-      <form onSubmit={handleUploadAnswer} className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+      {!!classrooms.length && !assignments.length && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <p className="font-bold">Waiting for a published exam</p>
+          <p className="mt-1 text-xs">Your teacher must create or upload a marking guide for this batch before an answer can be checked.</p>
+        </div>
+      )}
+      {!!assignments.length && <form onSubmit={handleUploadAnswer} className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
         <label className="block cursor-pointer rounded-lg border-2 border-dashed border-blue-200 bg-blue-50 p-4 text-center text-xs font-bold text-blue-800">
           <UploadCloud className="mx-auto mb-1" size={20} />{answerFile ? answerFile.name : 'Choose answer-sheet PDF'}
           <input type="file" accept="application/pdf,.pdf" onChange={e => setAnswerFile(e.target.files?.[0] || null)} className="sr-only" />
         </label>
         <button disabled={!answerFile || !assignmentId || uploadBusy} className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{uploadBusy ? 'Reading & grading…' : 'Submit for analysis'}</button>
-      </form>
+      </form>}
       {workspaceMessage && <p className="mt-3 rounded-lg bg-gray-100 p-3 text-xs font-bold text-gray-700">{workspaceMessage}</p>}
     </section>
   );
@@ -190,6 +198,17 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
 
         {/* Navigation Tabs */}
         <div className="max-w-7xl mx-auto px-6 flex items-center gap-2 border-t border-gray-100 text-sm font-medium pt-2 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('upload')}
+            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition whitespace-nowrap ${
+              activeTab === 'upload'
+                ? 'border-blue-600 text-blue-600 font-bold'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <UploadCloud className="w-4 h-4" />
+            <span>Upload Answer</span>
+          </button>
           <button
             onClick={() => setActiveTab('evaluations')}
             className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition whitespace-nowrap ${
@@ -242,7 +261,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
 
       {/* Main Content Area */}
       <main key={activeTab} className="dashboard-view-transition max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-8">{classroomWorkspace}</div>
+        {activeTab === 'upload' && <div className="mb-8">{classroomWorkspace}</div>}
         
         {/* TAB 1: MY SUBMISSIONS & CHARTS */}
         {activeTab === 'evaluations' && (
