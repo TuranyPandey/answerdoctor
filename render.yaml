@@ -3,12 +3,12 @@ services:
     name: answerdoctor-api
     runtime: python
     plan: free
-    region: singapore
+    region: oregon
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
-    autoDeploy: true
+    autoDeployTrigger: commit
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
@@ -24,7 +24,7 @@ services:
 databases:
   - name: answerdoctor-db
     plan: free
-    region: singapore
+    region: oregon
     postgresMajorVersion: "17"
     databaseName: answerdoctor
     user: answerdoctor
