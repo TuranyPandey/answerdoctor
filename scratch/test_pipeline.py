@@ -42,6 +42,8 @@ def test_full_pipeline():
         headers=student_headers,
     ))
     assert joined["classroom"]["id"] == classroom["id"]
+    assert expect(requests.get(f"{BASE_URL}/classrooms", headers=teacher_headers))[0]["id"] == classroom["id"]
+    assert isinstance(expect(requests.get(f"{BASE_URL}/pyq", headers=student_headers)), list)
 
     print("--- 4. Creating an assignment and decomposed rubric ---")
     assignment = expect(requests.post(

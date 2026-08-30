@@ -7,7 +7,7 @@ import json
 
 router = APIRouter(prefix="/api/pyq", tags=["PYQ Vault"])
 
-@router.get("/")
+@router.get("")
 def get_pyqs(subject: Optional[str] = None, year: Optional[int] = None, exam_type: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(PYQQuestion)
     if subject and subject != "ALL":

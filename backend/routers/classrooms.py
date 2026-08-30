@@ -35,7 +35,7 @@ def _unique_code(db: Session) -> str:
             return code
     raise HTTPException(status_code=503, detail="Could not generate a unique class code.")
 
-@router.get("/")
+@router.get("")
 def get_classrooms(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role == "teacher":
         classrooms = db.query(Classroom).filter(Classroom.teacher_id == current_user.id).order_by(Classroom.created_at.desc()).all()

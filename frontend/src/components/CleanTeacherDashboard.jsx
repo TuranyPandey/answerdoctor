@@ -38,7 +38,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
   useEffect(() => {
     const loadWorkspace = async () => {
       try {
-        const response = await apiFetch('/classrooms/');
+        const response = await apiFetch('/classrooms');
         if (!response.ok) throw new Error('Could not load classrooms');
         const rooms = await response.json();
         setClassrooms(rooms);

@@ -62,7 +62,7 @@ def _save_guide(assignment, current_user, file, extracted, blocks, db):
         db.add(DocumentQuestionBlock(document_id=document.id, **block))
     return document
 
-@router.get("/")
+@router.get("")
 def list_assignments(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role == "teacher":
         assignments = db.query(Assignment).join(Classroom).filter(Classroom.teacher_id == current_user.id).order_by(Assignment.created_at.desc()).all()

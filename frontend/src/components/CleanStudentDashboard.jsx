@@ -48,8 +48,8 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
       }
     };
     loadSubmission();
-    apiFetch('/pyq/').then(res => res.ok ? res.json() : []).then(setPyqs).catch(() => setPyqs([]));
-    apiFetch('/classrooms/').then(res => res.ok ? res.json() : []).then(rooms => {
+    apiFetch('/pyq').then(res => res.ok ? res.json() : []).then(setPyqs).catch(() => setPyqs([]));
+    apiFetch('/classrooms').then(res => res.ok ? res.json() : []).then(rooms => {
       setClassrooms(rooms); setClassroomId(rooms[0]?.id || null);
     }).catch(() => setClassrooms([]));
   }, [user.id]);
