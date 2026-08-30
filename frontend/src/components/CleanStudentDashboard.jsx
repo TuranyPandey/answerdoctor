@@ -78,8 +78,13 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
     try {
       const form = new FormData(); form.append('assignment_id', assignmentId); form.append('file', answerFile);
       const response = await apiFetch('/submissions/upload', { method: 'POST', body: form });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.detail || 'Upload failed.');
+      const responseText = await response.text();
+      let result = null;
+      try { result = responseText ? JSON.parse(responseText) : null; } catch { result = null; }
+      if (!response.ok) {
+        throw new Error(result?.detail || responseText || `Upload failed (${response.status}). Please retry in a moment.`);
+      }
+      if (!result) throw new Error('The OCR service restarted before finishing. Please retry the upload.');
       setSubmission(result); setAnswerFile(null); setLoadError(''); setDataSource('OCR document result');
       setActiveTab('evaluations');
       setWorkspaceMessage(`Answer document ${result.answer_document_id} graded against guide ${result.marking_guide_document_id || assignmentId}.`);

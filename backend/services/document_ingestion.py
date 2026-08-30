@@ -1,4 +1,5 @@
 import re
+import gc
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -6,6 +7,7 @@ from functools import lru_cache
 MAX_PDF_BYTES = 15 * 1024 * 1024
 MAX_PDF_PAGES = 40
 MIN_EMBEDDED_TEXT_CHARS = 40
+OCR_DPI = 120
 
 
 @dataclass
@@ -29,7 +31,14 @@ def _meaningful_character_count(text: str) -> int:
 @lru_cache(maxsize=1)
 def _ocr_engine():
     from rapidocr import RapidOCR
-    return RapidOCR()
+    return RapidOCR(params={
+        "Global.use_cls": False,
+        "Global.max_side_len": 1400,
+        "EngineConfig.onnxruntime.intra_op_num_threads": 1,
+        "EngineConfig.onnxruntime.inter_op_num_threads": 1,
+        "Rec.rec_batch_num": 1,
+        "Cls.cls_batch_num": 1,
+    })
 
 def _ocr_page(page):
     try:
@@ -38,14 +47,19 @@ def _ocr_page(page):
     except ImportError as error:
         raise ValueError("OCR support is not installed on the API server.") from error
 
-    pixmap = page.get_pixmap(dpi=180, colorspace=pymupdf.csRGB, alpha=False)
+    pixmap = page.get_pixmap(dpi=OCR_DPI, colorspace=pymupdf.csRGB, alpha=False)
     image = np.frombuffer(pixmap.samples, dtype=np.uint8).reshape(
         pixmap.height, pixmap.width, pixmap.n
     )
-    result = _ocr_engine()(image)
-    texts = list(result.txts or ())
-    scores = [float(score) for score in (result.scores or ())]
-    return "\n".join(texts).strip(), (sum(scores) / len(scores) if scores else 0.0)
+    try:
+        result = _ocr_engine()(image, use_cls=False)
+        texts = list(result.txts or ())
+        scores = [float(score) for score in (result.scores or ())]
+        return "\n".join(texts).strip(), (sum(scores) / len(scores) if scores else 0.0)
+    finally:
+        del image
+        del pixmap
+        gc.collect()
 
 
 def extract_pdf_text(content: bytes) -> ExtractedDocument:
