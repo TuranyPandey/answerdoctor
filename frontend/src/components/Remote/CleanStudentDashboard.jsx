@@ -4,7 +4,8 @@ import {
   HelpCircle, BookOpen, Layers, Sparkles, Send, Award, Target, Check, X
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
-import { API_BASE } from '../apiConfig';
+
+const API_BASE = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '/api';
 
 export default function StudentDashboard({ user, onLogout, theme, onToggleTheme }) {
   const [activeTab, setActiveTab] = useState('evaluations'); // 'evaluations', 'reasoning_map', 'doubts', 'pyq'
