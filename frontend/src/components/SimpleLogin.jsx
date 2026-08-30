@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, LogIn, UserPlus } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8008/api';
+import { API_BASE } from '../apiConfig';
 
 export default function AccountAccess({ role, onLogin, onBack, theme, onToggleTheme }) {
   const [mode, setMode] = useState('login');
