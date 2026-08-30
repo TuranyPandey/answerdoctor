@@ -1,23 +1,59 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from config import get_settings
+from sqlalchemy import URL, create_engine, event
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+import os
 
-settings = get_settings()
+DB_PATH = os.getenv("ANSWERDOCTOR_DB_PATH", os.path.join(os.path.dirname(__file__), "answerdoctor.db"))
 
-db_url = settings.database_url
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
-elif db_url.startswith("postgresql://"):
-    db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
-connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
+def get_database_url():
+    """Build a database URL without interpolating credentials into a string."""
+    configured_url = os.getenv("DATABASE_URL")
+    if configured_url:
+        if configured_url.startswith("postgres://"):
+            configured_url = configured_url.replace("postgres://", "postgresql+psycopg://", 1)
+        elif configured_url.startswith("postgresql://"):
+            configured_url = configured_url.replace("postgresql://", "postgresql+psycopg://", 1)
+        return configured_url
 
-engine = create_engine(
-    db_url,
-    connect_args=connect_args,
-    pool_pre_ping=True if not db_url.startswith("sqlite") else False
+    db_host = os.getenv("DB_HOST")
+    db_password = os.getenv("DB_PASSWORD")
+    if db_host and db_password:
+        return URL.create(
+            drivername="postgresql+psycopg",
+            username=os.getenv("DB_USER", "answerdoctor_admin"),
+            password=db_password,
+            host=db_host,
+            port=int(os.getenv("DB_PORT", "5432")),
+            database=os.getenv("DB_NAME", "answerdoctor"),
+        )
+
+    return f"sqlite:///{DB_PATH}"
+
+
+SQLALCHEMY_DATABASE_URL = get_database_url()
+IS_SQLITE = (
+    SQLALCHEMY_DATABASE_URL.startswith("sqlite")
+    if isinstance(SQLALCHEMY_DATABASE_URL, str)
+    else SQLALCHEMY_DATABASE_URL.drivername.startswith("sqlite")
 )
+
+connect_args = {"check_same_thread": False} if IS_SQLITE else {}
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args=connect_args,
+    pool_pre_ping=True,
+    pool_recycle=300,
+)
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if not IS_SQLITE:
+        return
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
