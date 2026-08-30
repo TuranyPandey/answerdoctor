@@ -12,6 +12,7 @@ class User(Base):
     role = Column(String, default="student") # 'teacher' or 'student'
     avatar_url = Column(String, nullable=True)
     google_id = Column(String, nullable=True)
+    password_hash = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class Classroom(Base):

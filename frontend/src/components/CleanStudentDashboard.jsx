@@ -4,7 +4,7 @@ import {
   HelpCircle, BookOpen, Layers, Sparkles, Send, Award, Target, Check, X
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
-import { API_BASE } from '../apiConfig';
+import { apiFetch } from '../apiConfig';
 
 export default function StudentDashboard({ user, onLogout, theme, onToggleTheme }) {
   const [activeTab, setActiveTab] = useState('evaluations'); // 'evaluations', 'reasoning_map', 'doubts', 'pyq'
@@ -27,7 +27,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
   useEffect(() => {
     const loadSubmission = async () => {
       try {
-        const response = await fetch(`${API_BASE}/submissions/student/${user.id}/latest`);
+        const response = await apiFetch(`/submissions/student/${user.id}/latest`);
         if (!response.ok) {
           const data = await response.json();
           throw new Error(data.detail || 'Submission unavailable');
@@ -40,7 +40,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
       }
     };
     loadSubmission();
-    fetch(`${API_BASE}/pyq/`).then(res => res.ok ? res.json() : []).then(setPyqs).catch(() => setPyqs([]));
+    apiFetch('/pyq/').then(res => res.ok ? res.json() : []).then(setPyqs).catch(() => setPyqs([]));
   }, [user.id]);
 
   const handleRetrySubmit = async (step) => {
@@ -48,14 +48,14 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
     setRetryBusy(true);
     setRetryFeedback(null);
     try {
-      const response = await fetch(`${API_BASE}/submissions/retry`, {
+      const response = await apiFetch('/submissions/retry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ step_id: step.id, selected_option: selectedOption })
       });
       if (!response.ok) throw new Error('Retry unavailable');
       const result = await response.json();
-      const refreshed = await fetch(`${API_BASE}/submissions/${submission.submission_id}`);
+      const refreshed = await apiFetch(`/submissions/${submission.submission_id}`);
       if (!refreshed.ok) throw new Error('Could not refresh submission');
       setSubmission(await refreshed.json());
       setRetryFeedback({ isCorrect: result.is_correct, text: `${result.explanation} Updated RAS: ${result.new_total_ras}%.` });
@@ -73,7 +73,7 @@ export default function StudentDashboard({ user, onLogout, theme, onToggleTheme 
 
     try {
       const step = submission?.steps.find(item => item.status !== 'MATCHED') || submission?.steps[0];
-      const response = await fetch(`${API_BASE}/doubts/ask`, {
+      const response = await apiFetch('/doubts/ask', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ student_id: user.id, step_id: step?.id || null, question_text: qText })
       });

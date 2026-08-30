@@ -1,4 +1,4 @@
-from sqlalchemy import URL, create_engine, event
+from sqlalchemy import URL, create_engine, event, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
@@ -63,3 +63,14 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def ensure_auth_schema():
+    """Apply the small additive auth migration to existing prototype databases."""
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    columns = {column["name"] for column in inspector.get_columns("users")}
+    if "password_hash" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR"))

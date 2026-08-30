@@ -3,6 +3,7 @@ import RoleSelector from './components/RoleSelector';
 import AuthForm from './components/SimpleLogin';
 import CleanTeacherDashboard from './components/CleanTeacherDashboard';
 import CleanStudentDashboard from './components/CleanStudentDashboard';
+import { apiFetch, clearSession, getStoredUser, saveSession } from './apiConfig';
 
 export default function App() {
   const [theme, setTheme] = useState(() => {
@@ -10,8 +11,8 @@ export default function App() {
     if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
-  const [user, setUser] = useState(null);
-  const [authStep, setAuthStep] = useState('role'); // 'role', 'auth', 'dashboard'
+  const [user, setUser] = useState(() => getStoredUser());
+  const [authStep, setAuthStep] = useState(() => getStoredUser() ? 'dashboard' : 'role'); // 'role', 'auth', 'dashboard'
   const [roleData, setRoleData] = useState(null);
 
   useEffect(() => {
@@ -20,6 +21,18 @@ export default function App() {
     window.localStorage.setItem('answerdoctor-theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    if (!user) return;
+    apiFetch('/auth/me').then(async (response) => {
+      if (!response.ok) throw new Error('Session expired');
+      setUser(await response.json());
+    }).catch(() => {
+      clearSession();
+      setUser(null);
+      setAuthStep('role');
+    });
+  }, []);
+
   const toggleTheme = () => setTheme((current) => current === 'dark' ? 'light' : 'dark');
 
   const handleRoleSelect = (data) => {
@@ -27,12 +40,14 @@ export default function App() {
     setAuthStep('auth');
   };
 
-  const handleLogin = (loggedInUser) => {
+  const handleLogin = (authResponse) => {
+    const loggedInUser = saveSession(authResponse);
     setUser(loggedInUser);
     setAuthStep('dashboard');
   };
 
   const handleLogout = () => {
+    clearSession();
     setUser(null);
     setAuthStep('role');
     setRoleData(null);

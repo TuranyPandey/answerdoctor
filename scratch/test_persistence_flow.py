@@ -22,14 +22,14 @@ from routers.analytics import get_class_analytics
 
 Base.metadata.create_all(bind=engine)
 db = SessionLocal()
-teacher = register(RegisterRequest(email="teacher@example.edu", full_name="Test Teacher", role="teacher"), db)
+teacher = register(RegisterRequest(email="teacher@example.edu", full_name="Test Teacher", password="teacher-pass-123", role="teacher"), db)
 classroom = create_classroom(ClassroomCreate(name="Physics A", subject="Physics", teacher_id=teacher["id"]), db)
 assignment = create_assignment(AssignmentCreate(
     title="Motion Test", subject="Physics", classroom_id=classroom.id,
     answer_key_text="State Newton's second law\nF = m * a\nFinal answer: a = F / m", total_marks=10
 ), db)
 student = register(RegisterRequest(
-    email="student@example.edu", full_name="Test Student", register_number="TEST001", role="student"
+    email="student@example.edu", full_name="Test Student", password="student-pass-123", register_number="TEST001", role="student"
 ), db)
 evaluation = evaluate_custom_submission(DynamicEvaluateSubmissionRequest(
     assignment_id=assignment.id, student_name="Test Student", register_number="TEST001",
@@ -44,7 +44,7 @@ assert latest["assignment_title"] == "Motion Test"
 assert latest["student_submission_count"] == 1
 analytics = get_class_analytics(assignment.id, db)
 assert analytics["cohort_total_scripts"] == 1
-assert login(LoginRequest(email="teacher@example.edu", role="teacher"), db)["id"] == teacher["id"]
+assert login(LoginRequest(email="teacher@example.edu", password="teacher-pass-123", role="teacher"), db)["id"] == teacher["id"]
 db.close()
 
 engine.dispose()

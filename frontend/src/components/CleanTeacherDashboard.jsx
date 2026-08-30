@@ -4,7 +4,7 @@ import {
   Sparkles, Send, FileText, CheckCircle, Search, Grid
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
-import { API_BASE } from '../apiConfig';
+import { apiFetch } from '../apiConfig';
 
 export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme }) {
   const [activeTab, setActiveTab] = useState('analytics'); // 'analytics', 'malpractice', 'auto_evaluator', 'pyq'
@@ -32,11 +32,11 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
   useEffect(() => {
     const loadWorkspace = async () => {
       try {
-        let response = await fetch(`${API_BASE}/classrooms/?teacher_id=${user.id}`);
+        let response = await apiFetch('/classrooms/?teacher_id=' + user.id);
         if (!response.ok) throw new Error('Could not load classrooms');
         let rooms = await response.json();
         if (!rooms.length) {
-          response = await fetch(`${API_BASE}/classrooms/create`, {
+          response = await apiFetch('/classrooms/create', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: `${user.full_name}'s class`, subject: 'General', teacher_id: user.id })
           });
@@ -44,7 +44,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
           rooms = [await response.json()];
         }
         setClassroom(rooms[0]);
-        response = await fetch(`${API_BASE}/assignments/?teacher_id=${user.id}`);
+        response = await apiFetch('/assignments/?teacher_id=' + user.id);
         if (!response.ok) throw new Error('Could not load assignments');
         const savedAssignments = await response.json();
         setAssignments(savedAssignments);
@@ -57,8 +57,8 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
   const refreshReports = async (id) => {
     if (!id) { setAnalytics(null); setMalpractice(null); return; }
     const [analyticsResponse, malpracticeResponse] = await Promise.all([
-      fetch(`${API_BASE}/analytics/assignment/${id}`),
-      fetch(`${API_BASE}/malpractice/assignment/${id}`)
+      apiFetch(`/analytics/assignment/${id}`),
+      apiFetch(`/malpractice/assignment/${id}`)
     ]);
     if (!analyticsResponse.ok || !malpracticeResponse.ok) throw new Error('Could not load reports');
     setAnalytics(await analyticsResponse.json());
@@ -73,7 +73,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
     setActionError('');
     setEvalMsg('');
     try {
-      const response = await fetch(`${API_BASE}/assignments/create`, {
+      const response = await apiFetch('/assignments/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -102,7 +102,7 @@ export default function TeacherDashboard({ user, onLogout, theme, onToggleTheme 
     setActionError('');
     setEvalResult(null);
     try {
-      const response = await fetch(`${API_BASE}/submissions/evaluate`, {
+      const response = await apiFetch('/submissions/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

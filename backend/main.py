@@ -1,11 +1,13 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import engine, Base
+from database import engine, Base, ensure_auth_schema
+from security import get_current_user
 from routers import auth, classrooms, assignments, submissions, malpractice, analytics, pyq, doubts
 import os
 
 # Create tables
 Base.metadata.create_all(bind=engine)
+ensure_auth_schema()
 
 app = FastAPI(
     title="AnswerDoctor Enterprise Engine",
@@ -28,13 +30,14 @@ app.add_middleware(
 
 # Register API Routers
 app.include_router(auth.router)
-app.include_router(classrooms.router)
-app.include_router(assignments.router)
-app.include_router(submissions.router)
-app.include_router(malpractice.router)
-app.include_router(analytics.router)
-app.include_router(pyq.router)
-app.include_router(doubts.router)
+protected = [Depends(get_current_user)]
+app.include_router(classrooms.router, dependencies=protected)
+app.include_router(assignments.router, dependencies=protected)
+app.include_router(submissions.router, dependencies=protected)
+app.include_router(malpractice.router, dependencies=protected)
+app.include_router(analytics.router, dependencies=protected)
+app.include_router(pyq.router, dependencies=protected)
+app.include_router(doubts.router, dependencies=protected)
 
 @app.on_event("startup")
 def startup_db_seed():
