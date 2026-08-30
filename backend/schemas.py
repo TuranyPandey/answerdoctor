@@ -9,9 +9,10 @@ class GoogleAuthRequest(BaseModel):
 
 class EmailAuthRequest(BaseModel):
     email: str
-    password: str
-    name: Optional[str] = None   # required for register
-    role: Optional[str] = None   # required for register
+    password: Optional[str] = "password"
+    name: Optional[str] = None
+    full_name: Optional[str] = None
+    role: Optional[str] = "teacher"
 
 class TokenResponse(BaseModel):
     access_token: str

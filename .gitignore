@@ -45,3 +45,5 @@ backend/uploads/
 
 # Build artifacts
 build/
+
+.vercel

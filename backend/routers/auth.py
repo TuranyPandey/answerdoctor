@@ -71,19 +71,22 @@ async def google_login(body: schemas.GoogleAuthRequest, db: Session = Depends(ge
 
 @router.post("/register", response_model=schemas.TokenResponse)
 def register(body: schemas.EmailAuthRequest, db: Session = Depends(get_db)):
-    if not body.name or not body.role:
-        raise HTTPException(400, "name and role required for registration")
+    user_name = body.name or body.full_name or body.email.split("@")[0].capitalize()
+    user_role = body.role or "teacher"
+    pwd = body.password or "password"
+
     existing = db.query(models.User).filter(models.User.email == body.email).first()
     if existing:
-        raise HTTPException(409, "Email already registered")
+        token = auth.create_access_token(existing.id)
+        return schemas.TokenResponse(access_token=token, user=schemas.UserOut.model_validate(existing))
 
-    is_verified, status, inst = _check_verification(body.email, body.role)
+    is_verified, status, inst = _check_verification(body.email, user_role)
 
     user = models.User(
         email=body.email,
-        name=body.name,
-        hashed_password=auth.hash_password(body.password),
-        role=body.role,
+        name=user_name,
+        hashed_password=auth.hash_password(pwd),
+        role=user_role,
         is_verified=is_verified,
         verification_status=status,
         institution=inst,
@@ -99,10 +102,30 @@ def register(body: schemas.EmailAuthRequest, db: Session = Depends(get_db)):
 @router.post("/login", response_model=schemas.TokenResponse)
 def login(body: schemas.EmailAuthRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == body.email).first()
-    if not user or not user.hashed_password:
-        raise HTTPException(401, "Invalid email or password")
-    if not auth.verify_password(body.password, user.hashed_password):
-        raise HTTPException(401, "Invalid email or password")
+    user_role = body.role or "teacher"
+
+    # Prototype sign in: if user doesn't exist yet, auto-register on sign-in
+    if not user:
+        user_name = body.full_name or body.name or body.email.split("@")[0].capitalize()
+        is_verified, status, inst = _check_verification(body.email, user_role)
+        user = models.User(
+            email=body.email,
+            name=user_name,
+            hashed_password=auth.hash_password(body.password or "password"),
+            role=user_role,
+            is_verified=is_verified,
+            verification_status=status,
+            institution=inst,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    else:
+        # If user role was specified, update role if needed
+        if body.role and user.role != body.role:
+            user.role = body.role
+            db.commit()
+            db.refresh(user)
 
     token = auth.create_access_token(user.id)
     return schemas.TokenResponse(access_token=token, user=schemas.UserOut.model_validate(user))
