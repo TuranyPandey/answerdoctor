@@ -3,18 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "frontend/dist",
   "framework": "vite",
-  "env": {
-    "VITE_API_URL": "/api",
-    "VITE_GOOGLE_CLIENT_ID": "26126776554-ats0ao6kkoed919k0g1p2839a5asm6us.apps.googleusercontent.com",
-    "VITE_SIMULATION_MODE": "true",
-    "VITE_CMI_THRESHOLD": "0.88",
-    "VITE_RAS_THRESHOLD": "0.60",
-    "VITE_APP_NAME": "AnswerDoctor",
-    "VITE_APP_TAGLINE": "Reasoning-level diagnosis for handwritten answer scripts",
-    "VITE_PIPELINE_STAGES": "OCR Extraction,Rubric Alignment,Semantic Scoring,Diagnosis Generation,Cohort Analysis",
-    "VITE_MAX_FILE_SIZE_MB": "50",
-    "VITE_COLLUSION_REVIEW_NOTE": "Flagged for teacher review — not an automatic penalty"
-  },
   "rewrites": [
     {
       "source": "/api/:path*",

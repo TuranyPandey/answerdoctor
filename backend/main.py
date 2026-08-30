@@ -1,57 +1,57 @@
-import sys
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from config import get_settings
 from database import engine, Base
-import models
-from routers import auth, classes, rubric, scripts, analytics, collusion, pyq, student, assignments, guilds
+from routers import auth, classrooms, assignments, submissions, malpractice, analytics, pyq, doubts
+import os
 
-settings = get_settings()
-
-import db_migrations
-
-# Create SQLite tables & migrate missing columns
+# Create tables
 Base.metadata.create_all(bind=engine)
-db_migrations.run_migrations()
 
 app = FastAPI(
-    title="AnswerDoctor API",
-    description="Reasoning-level diagnosis and batch grading for handwritten answer scripts with collusion detection",
-    version="1.0.0",
+    title="AnswerDoctor Enterprise Engine",
+    description="Reasoning-level script diagnostics, automated rubric alignment, PYQ vault, and collusion detection (CMI)",
+    version="2.0.0"
 )
 
-# CORS configuration
+# Enable CORS for Next.js / Vite frontend
+cors_origins = [origin.strip() for origin in os.getenv(
+    "CORS_ORIGINS", "http://127.0.0.1:3000,http://localhost:3000"
+).split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.origins_list or ["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(auth.router, prefix="/api")
-app.include_router(classes.router, prefix="/api")
-app.include_router(rubric.router, prefix="/api")
-app.include_router(scripts.router, prefix="/api")
-app.include_router(analytics.router, prefix="/api")
-app.include_router(collusion.router, prefix="/api")
-app.include_router(pyq.router, prefix="/api")
-app.include_router(student.router, prefix="/api")
-app.include_router(assignments.router, prefix="/api")
-app.include_router(guilds.router, prefix="/api")
+# Register API Routers
+app.include_router(auth.router)
+app.include_router(classrooms.router)
+app.include_router(assignments.router)
+app.include_router(submissions.router)
+app.include_router(malpractice.router)
+app.include_router(analytics.router)
+app.include_router(pyq.router)
+app.include_router(doubts.router)
+
+@app.on_event("startup")
+def startup_db_seed():
+    """Seed sample data only when explicitly requested for a demo deployment."""
+    if os.getenv("ANSWERDOCTOR_SEED_DEMO", "false").lower() == "true":
+        from services.seed_data import seed_thermodynamics_demo
+        seed_thermodynamics_demo()
 
 @app.get("/")
 def root():
     return {
-        "status": "online",
-        "app": settings.appName if hasattr(settings, "appName") else "AnswerDoctor",
-        "version": "1.0.0",
+        "status": "active",
+        "app": "AnswerDoctor Enterprise Engine",
+        "version": "2.0.0",
+        "persistent_database": True,
+        "demo_preloaded": os.getenv("ANSWERDOCTOR_SEED_DEMO", "false").lower() == "true",
+        "docs_url": "/docs"
     }
 
 @app.get("/health")
@@ -62,13 +62,9 @@ def health():
     try:
         db.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
-    except Exception as e:
-        return {"status": "unhealthy", "database": str(e)}
     finally:
         db.close()
 
 if __name__ == "__main__":
     import uvicorn
-    import os
-    port = int(os.getenv("PORT", "8008"))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8008")))
